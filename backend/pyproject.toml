@@ -1,0 +1,7 @@
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+log_cli = false
+log_level = "WARNING"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]

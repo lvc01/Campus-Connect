@@ -1,0 +1,65 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { Plus } from "lucide-react";
+import { mobileNavItems } from "./nav-config";
+import { openCompose, openSearch } from "@/lib/compose-events";
+import { cn } from "@/lib/utils";
+
+export function MobileBottomNav() {
+  const pathname = usePathname();
+  const isActive = (to: string, isSearch?: boolean) =>
+    !isSearch && (to === "/" ? pathname === "/" : pathname.startsWith(to));
+
+  return (
+    <nav className="fixed bottom-0 left-0 right-0 z-30 grid h-14 grid-cols-5 border-t border-border bg-background/90 backdrop-blur-md lg:hidden">
+      {mobileNavItems.map((item) => {
+        const active = isActive(item.to, item.isSearch);
+        const inner = (
+          <span className="relative">
+            <item.icon
+              className={cn("h-6 w-6", active ? "text-accent" : "text-text-secondary")}
+            />
+            {item.badge ? (
+              <span className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold text-accent-foreground">
+                {item.badge}
+              </span>
+            ) : null}
+          </span>
+        );
+        if (item.isSearch) {
+          return (
+            <button
+              key={item.label}
+              onClick={openSearch}
+              className="flex items-center justify-center"
+              aria-label={item.label}
+            >
+              {inner}
+            </button>
+          );
+        }
+        return (
+          <Link
+            key={item.label}
+            href={item.to}
+            className="flex items-center justify-center"
+            aria-label={item.label}
+          >
+            {inner}
+          </Link>
+        );
+      })}
+      <button
+        onClick={openCompose}
+        className="flex items-center justify-center"
+        aria-label="Compose post"
+      >
+        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-sm">
+          <Plus className="h-5 w-5" />
+        </span>
+      </button>
+    </nav>
+  );
+}

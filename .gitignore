@@ -1,0 +1,71 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Environment variables
+.env
+.env.local
+.env.production
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Alembic
+alembic/versions/__pycache__/
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+.nuxt/
+
+# Logs
+*.log
+logs/
+
+# Dev orchestration (dev.sh / stop.sh PID files)
+.dev.pid
+*.dev.pid
+
+# Database files
+*.db
+*.sqlite
+backend/test.db
+
+# Docker
+docker-compose.override.yml
+
+# Coverage
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+
+# Project-specific
+.superpowers/
+output/
+.trash/
+/tmp/
