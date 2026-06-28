@@ -1,15 +1,17 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { AlertCircle, LogIn, Sparkles, Flag } from "lucide-react";
+import { AlertCircle, LogIn, Sparkles, Flag, Ban, Check } from "lucide-react";
 import { ProfileHeader } from "@/components/profile/profile-header";
 import { ProfilePostsList } from "@/components/profile/profile-posts-list";
 import { LayoutShell } from "@/components/layout/LayoutShell";
 import { useAuth } from "@/context/auth-context";
 import { usePublicProfile } from "@/hooks/use-public-profile";
 import { ReportModal } from "@/components/report-modal";
+import { apiClient } from "@/lib/api-client";
+import { toast } from "sonner";
 
 const SignedOutView: React.FC = () => (
   <main className="flex min-h-screen items-center justify-center bg-background px-6">
@@ -62,6 +64,41 @@ export default function PublicProfilePage() {
   const { user, loading } = useAuth();
   const { profile, isLoading, error, refresh } = usePublicProfile(userId);
   const [showReport, setShowReport] = useState(false);
+  const [isBlocked, setIsBlocked] = useState(false);
+  const [blocking, setBlocking] = useState(false);
+
+  useEffect(() => {
+    if (user && profile && user.id !== profile.id) {
+      checkBlockStatus();
+    }
+  }, [user, profile]);
+
+  async function checkBlockStatus() {
+    try {
+      const { data } = await apiClient.get("/users/me/blocks");
+      setIsBlocked(data.some((b: { id: string }) => b.id === userId));
+    } catch {}
+  }
+
+  async function handleBlock() {
+    if (blocking) return;
+    setBlocking(true);
+    try {
+      if (isBlocked) {
+        await apiClient.delete(`/users/${userId}/block`);
+        setIsBlocked(false);
+        toast.success("User unblocked");
+      } else {
+        await apiClient.post(`/users/${userId}/block`);
+        setIsBlocked(true);
+        toast.success("User blocked");
+      }
+    } catch {
+      toast.error("Failed to update block status");
+    } finally {
+      setBlocking(false);
+    }
+  }
 
   if (loading) return <LoadingSplash />;
   if (!user) return <SignedOutView />;
@@ -77,7 +114,15 @@ export default function PublicProfilePage() {
         <ProfileHeader profile={profile} isOwn={isOwn} onProfileUpdated={refresh} />
 
         {!isOwn && (
-          <div className="mt-3 flex justify-end">
+          <div className="mt-3 flex justify-end gap-3">
+            <button
+              onClick={handleBlock}
+              disabled={blocking}
+              className="flex items-center gap-1.5 text-xs font-semibold text-text-secondary hover:text-error transition-colors disabled:opacity-50"
+            >
+              {isBlocked ? <Check className="h-3.5 w-3.5" /> : <Ban className="h-3.5 w-3.5" />}
+              {isBlocked ? "Blocked" : "Block User"}
+            </button>
             <button
               onClick={() => setShowReport(true)}
               className="flex items-center gap-1.5 text-xs font-semibold text-text-secondary hover:text-like transition-colors"

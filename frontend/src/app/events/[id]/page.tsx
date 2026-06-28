@@ -14,9 +14,14 @@ import {
   Trash2,
   Edit,
   ImageOff,
+  Bookmark,
+  X,
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { Avatar } from "@/components/Avatar";
+import { DetailSkeleton } from "@/components/ui/detail-skeleton";
+import { ErrorState } from "@/components/ui/error-state";
 import { useAuth } from "@/context/auth-context";
 import { apiClient } from "@/lib/api-client";
 import { cn, formatCount, getInitials, getRelativeTime } from "@/lib/utils";
@@ -63,6 +68,13 @@ export default function EventDetailPage() {
   const [rsvpLoading, setRsvpLoading] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  type Attendee = { id: string; email: string; display_name: string; avatar_url: string | null };
+  const [attendees, setAttendees] = useState<{ going: Attendee[]; maybe: Attendee[]; not_going: Attendee[] } | null>(null);
+  const [showAttendees, setShowAttendees] = useState(false);
+  const [attendeesTab, setAttendeesTab] = useState<"going" | "maybe" | "not_going">("going");
+  const [attendeesLoading, setAttendeesLoading] = useState(false);
 
   const fetchEvent = useCallback(async () => {
     if (!params.id || !user) return;
@@ -117,24 +129,56 @@ export default function EventDetailPage() {
     }
   };
 
+  const handleSave = async () => {
+    if (!event || saving) return;
+    const currentlySaved = !!event.is_saved;
+    setSaving(true);
+    setEvent((prev) => (prev ? { ...prev, is_saved: !currentlySaved } : prev));
+    try {
+      if (currentlySaved) await apiClient.delete(`/events/${event.id}/save`);
+      else await apiClient.post(`/events/${event.id}/save`);
+    } catch {
+      setEvent((prev) => (prev ? { ...prev, is_saved: currentlySaved } : prev));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const openAttendees = async () => {
+    if (!event) return;
+    setShowAttendees(true);
+    if (!attendees) {
+      setAttendeesLoading(true);
+      try {
+        const res = await apiClient.get(`/events/${event.id}/attendees`);
+        setAttendees(res.data);
+      } catch {
+        setAttendees({ going: [], maybe: [], not_going: [] });
+      } finally {
+        setAttendeesLoading(false);
+      }
+    }
+  };
+
   const isOrganizer = user && event && user.id === event.organizer_id;
 
   if (isLoading) {
     return (
-      <div className="flex-1 flex flex-col justify-center items-center bg-bg">
-        <Loader2 className="h-10 w-10 text-accent animate-spin" />
+      <div className="min-h-screen flex-1 bg-background">
+        <DetailSkeleton />
       </div>
     );
   }
 
   if (error || !event) {
     return (
-      <div className="flex-1 min-h-screen bg-bg text-text-primary flex flex-col items-center justify-center gap-4">
-        <div className="bg-bg-surface border border-border rounded-2xl p-12 text-center">
-          <XCircle className="h-10 w-10 text-text-secondary mx-auto mb-3" strokeWidth={1.5} />
-          <h2 className="text-lg font-bold text-text-secondary">{error || "Event not found"}</h2>
-          <Link href="/events" className="text-accent text-sm font-semibold mt-2 inline-block hover:underline">Back to Events</Link>
-        </div>
+      <div className="flex-1 min-h-screen bg-background text-text-primary flex flex-col items-center justify-center">
+        <ErrorState
+          title={error || "Event not found"}
+          message="This event may have been cancelled or removed."
+          onRetry={fetchEvent}
+        />
+        <Link href="/events" className="mt-2 text-accent text-sm font-semibold hover:underline">Back to Events</Link>
       </div>
     );
   }
@@ -215,10 +259,14 @@ export default function EventDetailPage() {
                 <div className="flex items-start gap-3">
                   <Users className="h-4 w-4 text-accent mt-0.5 shrink-0" />
                   <div>
-                    <p className="text-sm font-semibold text-text-primary">
+                    <button
+                      onClick={openAttendees}
+                      className="text-sm font-semibold text-text-primary hover:text-accent transition-colors text-left"
+                    >
                       {event.rsvp_count} attending
                       {event.rsvp_limit ? ` of ${event.rsvp_limit} capacity` : ""}
-                    </p>
+                      <span className="ml-1.5 text-xs font-medium text-accent">· View all</span>
+                    </button>
                     {capacityPercent !== null && (
                       <div className="mt-2 w-48 h-1.5 rounded-full bg-surface overflow-hidden">
                         <div
@@ -264,6 +312,19 @@ export default function EventDetailPage() {
                     )}
                   </button>
                 ))}
+                <button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className={cn(
+                    "mt-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold border transition-all active:scale-95",
+                    event.is_saved
+                      ? "bg-accent/10 text-accent border-accent/30"
+                      : "border-border text-text-secondary hover:bg-surface",
+                  )}
+                >
+                  <Bookmark className={cn("h-4 w-4", event.is_saved && "fill-current")} />
+                  {event.is_saved ? "Saved" : "Save event"}
+                </button>
               </div>
             </div>
 
@@ -299,6 +360,66 @@ export default function EventDetailPage() {
           </div>
         </div>
       </div>
+
+      {showAttendees && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-fade-in"
+          onClick={() => setShowAttendees(false)}
+        >
+          <div
+            className="w-full max-w-md bg-bg-surface border border-border rounded-2xl overflow-hidden animate-pop-in"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-border px-5 py-4">
+              <h3 className="text-base font-bold text-text-primary">Attendees</h3>
+              <button onClick={() => setShowAttendees(false)} aria-label="Close" className="text-text-secondary hover:text-text-primary">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="flex border-b border-border">
+              {([
+                { key: "going", label: "Going" },
+                { key: "maybe", label: "Maybe" },
+                { key: "not_going", label: "Can't Go" },
+              ] as const).map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => setAttendeesTab(key)}
+                  className={cn(
+                    "flex-1 py-2.5 text-xs font-bold transition-colors",
+                    attendeesTab === key ? "text-accent border-b-2 border-accent" : "text-text-secondary hover:text-text-primary",
+                  )}
+                >
+                  {label}
+                  {attendees && ` (${attendees[key].length})`}
+                </button>
+              ))}
+            </div>
+            <div className="max-h-80 overflow-y-auto p-3">
+              {attendeesLoading ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-text-muted" />
+                </div>
+              ) : attendees && attendees[attendeesTab].length > 0 ? (
+                <div className="space-y-1">
+                  {attendees[attendeesTab].map((a) => (
+                    <Link
+                      key={a.id}
+                      href={`/profile/${a.id}`}
+                      className="flex items-center gap-3 rounded-xl px-2 py-2 hover:bg-surface transition-colors"
+                    >
+                      <Avatar user={{ id: a.id, display_name: a.display_name, email: a.email, profile: { avatar_url: a.avatar_url } }} size={36} />
+                      <span className="text-sm font-medium text-text-primary truncate">{a.display_name || a.email.split("@")[0]}</span>
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <p className="py-8 text-center text-sm text-text-muted">No one here yet.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-fade-in">

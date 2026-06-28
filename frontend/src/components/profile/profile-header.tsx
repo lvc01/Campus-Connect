@@ -2,7 +2,7 @@
 
 import React, { useState, useRef } from "react";
 import Link from "next/link";
-import { Calendar, GraduationCap, Pencil, Camera, Loader2, Shield, ExternalLink } from "lucide-react";
+import { Calendar, GraduationCap, Pencil, Camera, Loader2, Shield, ExternalLink, MessageCircle } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
 import { apiClient } from "@/lib/api-client";
 import { toast } from "sonner";
@@ -31,22 +31,27 @@ const formatFacultyYear = (faculty: string | null | undefined, year: number | nu
   return parts.join(" · ");
 };
 
+// Colors aligned with the shared RoleBadge semantic
+// (admin=sky, moderator=violet, staff=amber).
 const ROLE_BADGES: Record<string, { label: string; color: string }> = {
-  moderator: { label: "Moderator", color: "bg-sky-500/10 text-sky-400 border-sky-500/20" },
-  admin: { label: "Admin", color: "bg-amber-500/10 text-amber-400 border-amber-500/20" },
-  university_staff: { label: "Staff", color: "bg-purple-500/10 text-purple-400 border-purple-500/20" },
+  admin: { label: "Admin", color: "bg-sky-500/10 text-sky-400 border-sky-500/20" },
+  moderator: { label: "Moderator", color: "bg-violet-500/10 text-violet-400 border-violet-500/20" },
+  university_staff: { label: "Staff", color: "bg-amber-500/10 text-amber-400 border-amber-500/20" },
 };
 
 const SOCIAL_ICONS: Record<string, string> = {
   github: "GitHub",
   linkedin: "LinkedIn",
-  twitter: "Twitter",
+  twitter: "X",
+  instagram: "Instagram",
+  youtube: "YouTube",
+  whatsapp: "WhatsApp",
 };
 
 export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ profile, isOwn, onProfileUpdated }) => {
   const p = profile.profile;
   const displayName = p?.display_name || "Student";
-  const handle = profile.email?.split("@")[0] || "user";
+  const handle = profile.username || profile.email?.split("@")[0] || "user";
   const facultyYear = formatFacultyYear(p?.faculty, p?.year_of_study);
   const roleBadge = ROLE_BADGES[profile.role];
 
@@ -168,7 +173,15 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ profile, isOwn, on
                 <Pencil size={14} />
                 Edit profile
               </Link>
-            ) : null}
+            ) : (
+              <Link
+                href={`/messages?to=${profile.id}`}
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-accent-foreground bg-accent rounded-full hover:opacity-90 transition-opacity"
+              >
+                <MessageCircle size={14} />
+                Message
+              </Link>
+            )}
           </div>
         </div>
 
@@ -205,13 +218,20 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ profile, isOwn, on
           )}
 
           {socialLinks && Object.keys(socialLinks).length > 0 && (
-            <div className="mt-3 flex items-center gap-3">
+            <div className="mt-3 flex items-center gap-3 flex-wrap">
               {Object.entries(socialLinks).map(([platform, url]) => {
                 if (!url) return null;
+                let href: string;
+                if (platform === "whatsapp") {
+                  const digits = url.replace(/[^0-9]/g, "");
+                  href = `https://wa.me/${digits}`;
+                } else {
+                  href = url.startsWith("http") ? url : `https://${url}`;
+                }
                 return (
                   <a
                     key={platform}
-                    href={url.startsWith("http") ? url : `https://${url}`}
+                    href={href}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1.5 text-xs font-semibold text-accent hover:text-accent/80 transition-colors"

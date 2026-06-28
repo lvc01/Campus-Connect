@@ -1,13 +1,15 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Bookmark, ChevronLeft, Loader2, MessageCircle, XCircle, Edit, Eye, Tag, Flag } from "lucide-react";
+import { Bookmark, ChevronLeft, MessageCircle, XCircle, Edit, Eye, Tag, Flag, MapPin } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/context/auth-context";
 import { apiClient } from "@/lib/api-client";
 import { getInitials, getRelativeTime } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { getApiErrorMessage, getApiErrorStatus } from "@/lib/api-error";
+import { DetailSkeleton } from "@/components/ui/detail-skeleton";
+import { ErrorState } from "@/components/ui/error-state";
 import { CreateListing } from "@/components/create-listing";
 import { ReportModal } from "@/components/report-modal";
 import Link from "next/link";
@@ -161,20 +163,21 @@ export default function ListingDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="flex-1 flex flex-col justify-center items-center bg-bg">
-        <Loader2 className="h-10 w-10 text-accent animate-spin" />
+      <div className="min-h-screen flex-1 bg-background">
+        <DetailSkeleton />
       </div>
     );
   }
 
   if (error || !listing) {
     return (
-      <div className="flex-1 min-h-screen bg-bg text-text-primary flex flex-col items-center justify-center gap-4">
-        <div className="bg-bg-surface border border-border rounded-2xl p-12 text-center">
-          <XCircle className="h-10 w-10 text-text-secondary mx-auto mb-3" strokeWidth={1.5} />
-          <h2 className="text-lg font-bold text-text-secondary">{error || "Listing not found"}</h2>
-          <Link href="/marketplace" className="text-accent text-sm font-semibold mt-2 inline-block hover:underline">Back to Marketplace</Link>
-        </div>
+      <div className="flex-1 min-h-screen bg-background text-text-primary flex flex-col items-center justify-center">
+        <ErrorState
+          title={error || "Listing not found"}
+          message="This listing may have been sold or removed."
+          onRetry={() => window.location.reload()}
+        />
+        <Link href="/marketplace" className="mt-2 text-accent text-sm font-semibold hover:underline">Back to Marketplace</Link>
       </div>
     );
   }
@@ -236,7 +239,7 @@ export default function ListingDetailPage() {
             <div className="bg-bg-surface border border-border rounded-2xl p-6">
               <div className="flex items-start justify-between gap-3 mb-4">
                 <h1 className="text-xl font-black tracking-tight leading-tight text-text-primary">{listing.title}</h1>
-                <span className="text-2xl font-black text-emerald-400 shrink-0">₹{listing.price.toLocaleString("en-IN")}</span>
+                <span className="text-2xl font-black text-success shrink-0">₹{listing.price.toLocaleString("en-IN")}</span>
               </div>
 
               <div className="flex flex-wrap gap-2 mb-4">
@@ -395,6 +398,20 @@ export default function ListingDetailPage() {
                 <div className="flex justify-between"><span className="text-text-secondary">Listed</span><span className="text-text-primary font-medium">{getRelativeTime(listing.created_at)}</span></div>
                 <div className="flex justify-between"><span className="text-text-secondary">Views</span><span className="text-text-primary font-medium">{listing.view_count.toLocaleString()}</span></div>
                 <div className="flex justify-between"><span className="text-text-secondary">Status</span><span className="text-text-primary font-medium capitalize">{listing.status}</span></div>
+                {listing.location && (
+                  <div className="flex justify-between gap-3">
+                    <span className="text-text-secondary shrink-0">Location</span>
+                    <a
+                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(listing.location)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-accent font-medium hover:underline text-right min-w-0"
+                    >
+                      <MapPin className="h-3 w-3 shrink-0" />
+                      <span className="truncate">{listing.location}</span>
+                    </a>
+                  </div>
+                )}
               </div>
             </div>
           </div>

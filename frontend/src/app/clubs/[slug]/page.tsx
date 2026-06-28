@@ -12,7 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getApiErrorMessage, getApiErrorStatus } from "@/lib/api-error";
 import { toast } from "sonner";
-import { MoreVertical, Shield, ShieldOff, UserMinus, Trash2, Flag } from "lucide-react";
+import { MoreVertical, Shield, ShieldOff, UserMinus, Trash2, Flag, Check, X } from "lucide-react";
+import { Avatar } from "@/components/Avatar";
 import { ReportModal } from "@/components/report-modal";
 import type { PostData } from "@/types/post";
 
@@ -68,6 +69,7 @@ export default function ClubHubPage() {
 
   const [club, setClub] = useState<ClubData | null>(null);
   const [members, setMembers] = useState<MemberData[]>([]);
+  const [pendingMembers, setPendingMembers] = useState<MemberData[]>([]);
   const [posts, setPosts] = useState<PostData[]>([]);
   
   const [isPageLoading, setIsPageLoading] = useState(true);
@@ -106,6 +108,14 @@ export default function ClubHubPage() {
       // Load members
       const membersRes = await apiClient.get<MemberData[]>(`/clubs/${clubData.id}/members`);
       window.setTimeout(() => setMembers(membersRes.data), 0);
+
+      // Load pending membership requests (owner/admin only)
+      if (clubData.member_role === "owner" || clubData.member_role === "admin") {
+        try {
+          const pendingRes = await apiClient.get<MemberData[]>(`/clubs/${clubData.id}/members/pending`);
+          window.setTimeout(() => setPendingMembers(pendingRes.data), 0);
+        } catch { /* non-critical */ }
+      }
 
       // Load club events
       try {
@@ -262,6 +272,32 @@ export default function ClubHubPage() {
       setMemberMenuOpen(null);
     } catch (err) {
       toast.error(getApiErrorMessage(err, "Failed to remove member."));
+    }
+  };
+
+  const handleApproveMember = async (userId: string) => {
+    if (!club) return;
+    try {
+      await apiClient.post(`/clubs/${club.id}/members/${userId}/approve`);
+      setPendingMembers((prev) => prev.filter((m) => m.user_id !== userId));
+      setClub((prev) => (prev ? { ...prev, member_count: prev.member_count + 1 } : null));
+      // Refresh members so the new member appears in the directory
+      const membersRes = await apiClient.get<MemberData[]>(`/clubs/${club.id}/members`);
+      setMembers(membersRes.data);
+      toast.success("Member approved");
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, "Failed to approve member."));
+    }
+  };
+
+  const handleRejectMember = async (userId: string) => {
+    if (!club) return;
+    try {
+      await apiClient.post(`/clubs/${club.id}/members/${userId}/reject`);
+      setPendingMembers((prev) => prev.filter((m) => m.user_id !== userId));
+      toast.success("Request rejected");
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, "Failed to reject request."));
     }
   };
 
@@ -606,7 +642,49 @@ export default function ClubHubPage() {
 
             {/* Column 2: Members list side directory (Takes 1/3 width) */}
             <section className="w-full md:w-80 shrink-0 flex flex-col gap-6 order-1 md:order-2">
-              
+
+              {/* Pending membership requests (owner/admin only) */}
+              {isManagementAllowed && pendingMembers.length > 0 && (
+                <div className="flex flex-col gap-3">
+                  <div className="border-b border-border pb-2 select-none flex items-center gap-2">
+                    <h2 className="text-base font-black text-text-main uppercase tracking-wider">Pending requests</h2>
+                    <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1.5 text-[11px] font-bold text-accent-foreground">
+                      {pendingMembers.length}
+                    </span>
+                  </div>
+                  <div className="bg-bg-surface border border-border rounded-2xl p-4 flex flex-col gap-3">
+                    {pendingMembers.map((member) => {
+                      const prof = member.user?.profile;
+                      const display = prof?.display_name || member.user?.email.split("@")[0];
+                      return (
+                        <div key={member.id} className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <Avatar user={{ id: member.user_id, display_name: display, email: member.user?.email, profile: { avatar_url: prof?.avatar_url } }} size={32} />
+                            <span className="text-sm font-semibold text-text-primary truncate">{display}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <button
+                              onClick={() => handleApproveMember(member.user_id)}
+                              aria-label="Approve"
+                              className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 transition-colors"
+                            >
+                              <Check className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => handleRejectMember(member.user_id)}
+                              aria-label="Reject"
+                              className="flex h-7 w-7 items-center justify-center rounded-full bg-like/10 text-like hover:bg-like/20 transition-colors"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               <div className="border-b border-border pb-2 select-none">
                 <h2 className="text-base font-black text-text-main uppercase tracking-wider">Members directory</h2>
               </div>

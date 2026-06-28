@@ -14,6 +14,7 @@ import {
   HelpCircle,
   XCircle as XCircleIcon,
   ImageOff,
+  Bookmark,
 } from "lucide-react";
 import Link from "next/link";
 import { LayoutShell } from "@/components/layout/LayoutShell";
@@ -25,7 +26,7 @@ import { Button } from "@/components/ui/button";
 import { CreateEvent } from "@/components/create-event";
 import type { EventData } from "@/types/events";
 
-const STATUS_TABS = ["upcoming", "my_events", "past"] as const;
+const STATUS_TABS = ["upcoming", "my_events", "saved", "past"] as const;
 type TabKey = (typeof STATUS_TABS)[number];
 
 const RSVP_OPTIONS = [
@@ -63,6 +64,7 @@ export default function EventsPage() {
       const params: Record<string, string> = {};
       if (tab === "upcoming") params.status = "upcoming";
       else if (tab === "past") params.status = "completed";
+      else if (tab === "saved") params.saved_only = "true";
       if (search) params.search = search;
       const res = await apiClient.get("/events", { params });
       setEvents(Array.isArray(res.data) ? res.data : []);
@@ -108,6 +110,17 @@ export default function EventsPage() {
     }
   };
 
+  const handleSave = async (eventId: string, currentlySaved: boolean) => {
+    // Optimistic toggle
+    setEvents((prev) => prev.map((ev) => (ev.id === eventId ? { ...ev, is_saved: !currentlySaved } : ev)));
+    try {
+      if (currentlySaved) await apiClient.delete(`/events/${eventId}/save`);
+      else await apiClient.post(`/events/${eventId}/save`);
+    } catch {
+      setEvents((prev) => prev.map((ev) => (ev.id === eventId ? { ...ev, is_saved: currentlySaved } : ev)));
+    }
+  };
+
   const handleEventCreated = (event: any) => {
     setEvents((prev) => [{ ...event, user_rsvp: null } as EventData, ...prev]);
     setShowCreate(false);
@@ -123,45 +136,48 @@ export default function EventsPage() {
     <LayoutShell hideRightRail>
       <PageHeader title="Events" />
 
-      <div className="px-6">
-        <div className="flex items-center gap-2 pt-3 pb-4 border-b border-border">
-          {([
-            { key: "upcoming", label: "Upcoming", icon: Calendar },
-            { key: "my_events", label: "My Events", icon: Users },
-            { key: "past", label: "Past", icon: Clock },
-          ] as const).map(({ key, label, icon: Icon }) => (
-            <button
-              key={key}
-              onClick={() => setTab(key)}
-              className={cn(
-                "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-200",
-                tab === key
-                  ? "bg-accent/10 text-accent"
-                  : "text-text-secondary hover:text-text-primary hover:bg-surface"
-              )}
-            >
-              <Icon className="h-3.5 w-3.5" />
-              {label}
-            </button>
-          ))}
+      <div className="px-4 sm:px-6">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 pt-3 pb-4 border-b border-border">
+          <div className="flex items-center gap-2 flex-wrap">
+            {([
+              { key: "upcoming", label: "Upcoming", icon: Calendar },
+              { key: "my_events", label: "My Events", icon: Users },
+              { key: "saved", label: "Saved", icon: Bookmark },
+              { key: "past", label: "Past", icon: Clock },
+            ] as const).map(({ key, label, icon: Icon }) => (
+              <button
+                key={key}
+                onClick={() => setTab(key)}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-200",
+                  tab === key
+                    ? "bg-accent/10 text-accent"
+                    : "text-text-secondary hover:text-text-primary hover:bg-surface"
+                )}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                {label}
+              </button>
+            ))}
+          </div>
 
-          <div className="ml-auto flex items-center gap-2">
-            <form onSubmit={handleSearch} className="flex gap-2">
-              <div className="relative">
+          <div className="flex items-center gap-2 sm:ml-auto">
+            <form onSubmit={handleSearch} className="flex gap-2 flex-1 sm:flex-none">
+              <div className="relative flex-1 sm:flex-none">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-text-muted" />
                 <input
                   type="text"
                   placeholder="Search events..."
                   value={searchInput}
                   onChange={(e) => setSearchInput(e.target.value)}
-                  className="w-48 pl-9 pr-3 py-1.5 rounded-lg border border-border bg-surface text-xs font-medium text-text-primary placeholder:text-text-muted outline-none focus:border-accent/50 transition-all"
+                  className="w-full sm:w-48 pl-9 pr-3 py-1.5 rounded-lg border border-border bg-surface text-xs font-medium text-text-primary placeholder:text-text-muted outline-none focus:border-accent/50 transition-all"
                 />
               </div>
-              <Button type="submit" size="sm" variant="secondary">Search</Button>
+              <Button type="submit" size="sm" variant="secondary" className="shrink-0">Search</Button>
             </form>
-            <Button onClick={() => setShowCreate(true)} className="gap-1.5">
+            <Button onClick={() => setShowCreate(true)} className="gap-1.5 shrink-0">
               <Plus className="h-3.5 w-3.5" />
-              Create Event
+              <span className="hidden sm:inline">Create Event</span>
             </Button>
           </div>
         </div>
@@ -186,11 +202,13 @@ export default function EventsPage() {
               <p className="text-sm font-semibold text-text-secondary">
                 {tab === "my_events"
                   ? "You haven't RSVP'd to any events yet."
+                  : tab === "saved"
+                  ? "No saved events yet."
                   : tab === "past"
                   ? "No past events."
                   : "No upcoming events."}
               </p>
-              {tab !== "past" && (
+              {(tab === "upcoming" || tab === "my_events") && (
                 <Button size="sm" className="mt-3" onClick={() => setShowCreate(true)}>
                   Create Event
                 </Button>
@@ -224,6 +242,17 @@ export default function EventsPage() {
                             {event.club.name}
                           </span>
                         )}
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleSave(event.id, !!event.is_saved);
+                          }}
+                          aria-label={event.is_saved ? "Unsave event" : "Save event"}
+                          className="absolute top-3 right-3 flex h-8 w-8 items-center justify-center rounded-full bg-black/40 backdrop-blur-sm text-white transition-colors hover:bg-black/60"
+                        >
+                          <Bookmark className={cn("h-4 w-4", event.is_saved && "fill-current")} />
+                        </button>
                       </div>
                     ) : (
                       <div className="relative h-32 bg-gradient-to-br from-accent/20 via-accent/10 to-surface flex items-end p-4">
@@ -235,6 +264,17 @@ export default function EventsPage() {
                             </span>
                           )}
                         </div>
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleSave(event.id, !!event.is_saved);
+                          }}
+                          aria-label={event.is_saved ? "Unsave event" : "Save event"}
+                          className="absolute top-3 right-3 flex h-8 w-8 items-center justify-center rounded-full bg-surface/80 text-text-secondary transition-colors hover:text-accent"
+                        >
+                          <Bookmark className={cn("h-4 w-4", event.is_saved && "fill-current text-accent")} />
+                        </button>
                       </div>
                     )}
 
@@ -261,10 +301,22 @@ export default function EventsPage() {
                             {event.organizer?.profile?.display_name || event.organizer?.email?.split("@")[0]}
                           </span>
                         </div>
-                        <span className="text-[11px] font-medium text-text-muted">
-                          <Users className="h-3 w-3 inline mr-0.5" />
-                          {event.rsvp_count}{event.rsvp_limit ? `/${event.rsvp_limit}` : ""}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          {event.rsvp_limit != null && (() => {
+                            const left = event.rsvp_limit - event.rsvp_count;
+                            if (left <= 0)
+                              return <span className="rounded-full bg-like/10 px-2 py-0.5 text-[10px] font-bold text-like">Full</span>;
+                            if (left <= 3)
+                              return <span className="rounded-full bg-like/10 px-2 py-0.5 text-[10px] font-bold text-like">{left} left</span>;
+                            if (left <= 10)
+                              return <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-500">{left} left</span>;
+                            return null;
+                          })()}
+                          <span className="text-[11px] font-medium text-text-muted">
+                            <Users className="h-3 w-3 inline mr-0.5" />
+                            {event.rsvp_count}{event.rsvp_limit ? `/${event.rsvp_limit}` : ""}
+                          </span>
+                        </div>
                       </div>
 
                       {event.status !== "past" && (

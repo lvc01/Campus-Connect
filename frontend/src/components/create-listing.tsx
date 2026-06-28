@@ -21,6 +21,12 @@ const CATEGORIES = [
   { value: "accommodation", label: "Accommodation" },
   { value: "tutoring", label: "Tutoring" },
   { value: "electronics", label: "Electronics" },
+  { value: "clothing", label: "Clothing" },
+  { value: "furniture", label: "Furniture" },
+  { value: "sports", label: "Sports" },
+  { value: "food", label: "Food" },
+  { value: "transport", label: "Transport" },
+  { value: "services", label: "Services" },
   { value: "other", label: "Other" },
 ];
 
@@ -51,6 +57,7 @@ export const CreateListing: React.FC<CreateListingProps> = ({
   const [price, setPrice] = useState(editListing?.price?.toString() || "");
   const [category, setCategory] = useState(editListing?.category || "");
   const [condition, setCondition] = useState(editListing?.condition || "");
+  const [location, setLocation] = useState(editListing?.location || "");
   const [imageUrls, setImageUrls] = useState<string[]>(
     editListing?.images?.map((img) => img.url) || []
   );
@@ -101,6 +108,7 @@ export const CreateListing: React.FC<CreateListingProps> = ({
         price: parseFloat(price),
         category,
         condition: condition || null,
+        location: location.trim() || null,
         image_urls: imageUrls,
       };
 
@@ -119,6 +127,7 @@ export const CreateListing: React.FC<CreateListingProps> = ({
       setPrice("");
       setCategory("");
       setCondition("");
+      setLocation("");
       setImageUrls([]);
       setImageUrlInput("");
       onClose();
@@ -237,6 +246,14 @@ export const CreateListing: React.FC<CreateListingProps> = ({
               </SelectContent>
             </Select>
           </div>
+
+          <Input
+            label="Location (optional)"
+            id="listing-location"
+            placeholder="e.g. North Campus, Block C"
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+          />
 
           <div className="flex flex-col gap-2">
             <label className="text-sm font-semibold text-text-main">

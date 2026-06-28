@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/context/auth-context";
 import { apiClient } from "@/lib/api-client";
-import { getWSClient, releaseWSClient, WSClient } from "@/lib/websocket";
+import { getWSClient, releaseWSClient, fetchWsToken, WSClient } from "@/lib/websocket";
 
 interface UserProfile {
   id: string;
@@ -32,6 +32,13 @@ export interface Conversation {
   unread_count: number;
 }
 
+export interface MessageReply {
+  id: string;
+  sender: UserProfile;
+  content: string | null;
+  message_type: string;
+}
+
 export interface MessageData {
   id: string;
   conversation_id: string;
@@ -42,6 +49,7 @@ export interface MessageData {
   edited_at: string | null;
   created_at: string;
   reactions?: MessageReactionData[];
+  reply_to?: MessageReply | null;
 }
 
 export interface MessageReactionData {
@@ -58,7 +66,7 @@ interface ChatContextValue {
   setActiveConvId: (id: string | null) => void;
   messages: MessageData[];
   messagesLoading: boolean;
-  sendMessage: (content: string, messageType?: string, fileUrl?: string) => Promise<void>;
+  sendMessage: (content: string, messageType?: string, fileUrl?: string, replyToId?: string) => Promise<void>;
   editMessage: (messageId: string, content: string) => Promise<void>;
   deleteMessage: (messageId: string) => Promise<void>;
   toggleReaction: (messageId: string, emoji: string) => Promise<void>;
@@ -147,7 +155,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   }, [fetchMessages]);
 
   // Send message
-  const sendMessage = useCallback(async (content: string, messageType: string = "text", fileUrl?: string) => {
+  const sendMessage = useCallback(async (content: string, messageType: string = "text", fileUrl?: string, replyToId?: string) => {
     if (!activeConvId) return;
     if (messageType === "text" && !content.trim()) return;
     try {
@@ -155,6 +163,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         content: content.trim() || null,
         message_type: messageType,
         file_url: fileUrl || null,
+        reply_to_message_id: replyToId || null,
       });
       setMessages((prev) => [...prev, resp.data]);
       refreshConversations();
@@ -287,38 +296,41 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!user) return;
 
-    const token = localStorage.getItem("cc_access_token");
-    if (!token) return;
+    let unsubNewMessage: (() => void) | null = null;
+    let unsubTyping: (() => void) | null = null;
 
-    const ws = getWSClient(token);
-    wsRef.current = ws;
-    ws.connect();
+    fetchWsToken().then((token) => {
+      if (!token) return;
+      const ws = getWSClient(token);
+      wsRef.current = ws;
+      ws.connect();
 
-    const unsubNewMessage = ws.on("new_message", (data: MessageData) => {
-      if (data.conversation_id === activeConvIdRef.current) {
-        setMessages((prev) => [...prev, data]);
-        markRead(data.conversation_id);
-      }
-      refreshConversations();
-    });
+      unsubNewMessage = ws.on("new_message", (data: MessageData) => {
+        if (data.conversation_id === activeConvIdRef.current) {
+          setMessages((prev) => [...prev, data]);
+          markRead(data.conversation_id);
+        }
+        refreshConversations();
+      });
 
-    const unsubTyping = ws.on("typing", (data: { conversation_id: string; user_id: string; is_typing: boolean }) => {
-      if (data.conversation_id === activeConvIdRef.current) {
-        setTypingUsers((prev) => {
-          const next = new Set(prev);
-          if (data.is_typing) {
-            next.add(data.user_id);
-          } else {
-            next.delete(data.user_id);
-          }
-          return next;
-        });
-      }
+      unsubTyping = ws.on("typing", (data: { conversation_id: string; user_id: string; is_typing: boolean }) => {
+        if (data.conversation_id === activeConvIdRef.current) {
+          setTypingUsers((prev) => {
+            const next = new Set(prev);
+            if (data.is_typing) {
+              next.add(data.user_id);
+            } else {
+              next.delete(data.user_id);
+            }
+            return next;
+          });
+        }
+      });
     });
 
     return () => {
-      unsubNewMessage();
-      unsubTyping();
+      unsubNewMessage?.();
+      unsubTyping?.();
       releaseWSClient();
     };
   }, [user, refreshConversations, markRead]);
