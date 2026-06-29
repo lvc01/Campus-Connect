@@ -3,8 +3,9 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, Heart, MessageCircle, Bookmark, Share2, Lock } from "lucide-react";
+import { Heart, MessageCircle, Bookmark, Share2, Lock } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
+import { BackLink } from "@/components/layout/BackLink";
 import { DetailSkeleton } from "@/components/ui/detail-skeleton";
 import { ErrorState } from "@/components/ui/error-state";
 import { RoleBadge } from "@/components/RoleBadge";
@@ -109,13 +110,7 @@ export default function PostDetailPage() {
   return (
     <div className="flex min-h-screen flex-1 flex-col bg-background text-text-primary">
       <div className="relative z-10 mx-auto w-full max-w-2xl flex-1 px-4 py-6">
-        <Link
-          href="/"
-          className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-text-secondary transition-colors hover:text-text-primary"
-        >
-          <ChevronLeft className="h-4 w-4" strokeWidth={2.5} />
-          Back
-        </Link>
+        <BackLink href="/" />
 
         <article className="overflow-hidden rounded-2xl border border-border bg-surface">
           {/* Author header */}

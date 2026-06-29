@@ -2,9 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
+import { BackLink } from "@/components/layout/BackLink";
 import {
-  ChevronLeft,
   ChevronRight,
   Lock,
   LogOut,
@@ -175,14 +174,7 @@ export default function SettingsPage() {
   return (
     <div className="flex-1 min-h-screen bg-bg text-text-primary flex flex-col relative">
       <div className="flex-1 w-full max-w-2xl mx-auto px-4 py-6 relative z-10">
-        {/* Back link */}
-        <Link
-          href="/"
-          className="inline-flex items-center gap-2 text-sm font-semibold text-text-secondary hover:text-text-primary transition-colors mb-6"
-        >
-          <ChevronLeft className="h-4 w-4" strokeWidth={2.5} />
-          Back
-        </Link>
+        <BackLink href="/" />
 
         <h1 className="text-2xl font-black text-text-primary mb-6">Settings</h1>
 
@@ -414,7 +406,7 @@ export default function SettingsPage() {
               <SettingsRow
                 icon={BookOpen}
                 label="Community Guidelines"
-                onClick={() => router.push("/guidelines")}
+                onClick={() => router.push("/community-guidelines")}
               />
             </Section>
 

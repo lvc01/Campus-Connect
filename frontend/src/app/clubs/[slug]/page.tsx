@@ -94,33 +94,31 @@ export default function ClubHubPage() {
   const loaderRef = useRef<HTMLDivElement>(null);
 
   const fetchClubDetails = async () => {
-    window.setTimeout(() => setIsPageLoading(true), 0);
+    setIsPageLoading(true);
     try {
       const clubRes = await apiClient.get<ClubData>(`/clubs/${slug}`);
       const clubData = clubRes.data;
-      window.setTimeout(() => {
-        setClub(clubData);
-        setEditDesc(clubData.description || "");
-        setEditLogo(clubData.logo_url || "");
-        setEditBanner(clubData.banner_url || "");
-      }, 0);
+      setClub(clubData);
+      setEditDesc(clubData.description || "");
+      setEditLogo(clubData.logo_url || "");
+      setEditBanner(clubData.banner_url || "");
 
       // Load members
       const membersRes = await apiClient.get<MemberData[]>(`/clubs/${clubData.id}/members`);
-      window.setTimeout(() => setMembers(membersRes.data), 0);
+      setMembers(membersRes.data);
 
       // Load pending membership requests (owner/admin only)
       if (clubData.member_role === "owner" || clubData.member_role === "admin") {
         try {
           const pendingRes = await apiClient.get<MemberData[]>(`/clubs/${clubData.id}/members/pending`);
-          window.setTimeout(() => setPendingMembers(pendingRes.data), 0);
+          setPendingMembers(pendingRes.data);
         } catch { /* non-critical */ }
       }
 
       // Load club events
       try {
         const eventsRes = await apiClient.get("/events", { params: { club_id: clubData.id, status: "upcoming" } });
-        window.setTimeout(() => setClubEvents(eventsRes.data.slice(0, 3)), 0);
+        setClubEvents(eventsRes.data.slice(0, 3));
       } catch { /* non-critical */ }
 
       // Trigger feed load
@@ -131,16 +129,13 @@ export default function ClubHubPage() {
         router.push("/clubs");
       }
     } finally {
-      window.setTimeout(() => setIsPageLoading(false), 0);
+      setIsPageLoading(false);
     }
   };
 
   const fetchFeed = async (clubId: string, cursor: string | null = null, append = false) => {
-    if (cursor) {
-      window.setTimeout(() => setIsMoreLoading(true), 0);
-    } else {
-      window.setTimeout(() => setIsFeedLoading(true), 0);
-    }
+    if (cursor) setIsMoreLoading(true);
+    else setIsFeedLoading(true);
 
     try {
       const response = await apiClient.get("/posts", {
@@ -153,22 +148,15 @@ export default function ClubHubPage() {
 
       const { items, next_cursor, has_more } = response.data;
 
-      window.setTimeout(() => {
-        if (append) {
-          setPosts((prev) => [...prev, ...items]);
-        } else {
-          setPosts(items);
-        }
-        setNextCursor(next_cursor);
-        setHasMore(has_more);
-      }, 0);
+      if (append) setPosts((prev) => [...prev, ...items]);
+      else setPosts(items);
+      setNextCursor(next_cursor);
+      setHasMore(has_more);
     } catch (err) {
       console.error("Failed to load club feed", err);
     } finally {
-      window.setTimeout(() => {
-        setIsFeedLoading(false);
-        setIsMoreLoading(false);
-      }, 0);
+      setIsFeedLoading(false);
+      setIsMoreLoading(false);
     }
   };
 

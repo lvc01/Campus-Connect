@@ -3,8 +3,9 @@
 import { useEffect, useState, useRef, useCallback, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, Search as SearchIcon, Sparkles, Users, FileText, BookOpen, Calendar, ShoppingBag, Loader2 } from "lucide-react";
+import { Search as SearchIcon, Sparkles, Users, FileText, BookOpen, Calendar, ShoppingBag, Loader2 } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
+import { BackLink } from "@/components/layout/BackLink";
 import { apiClient } from "@/lib/api-client";
 
 interface SearchResult {
@@ -83,10 +84,7 @@ function SearchContent() {
   return (
     <div className="flex-1 min-h-screen bg-background text-text-primary flex flex-col relative">
       <div className="flex-1 w-full max-w-2xl mx-auto px-4 py-6 relative z-10">
-        <Link href="/" className="inline-flex items-center gap-2 text-sm font-semibold text-text-secondary hover:text-text-primary transition-colors mb-6">
-          <ChevronLeft className="h-4 w-4" strokeWidth={2.5} />
-          Back
-        </Link>
+        <BackLink href="/" />
 
         <h1 className="text-2xl font-black text-text-primary mb-6">Search</h1>
 

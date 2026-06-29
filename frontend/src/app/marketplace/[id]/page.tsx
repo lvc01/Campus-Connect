@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Bookmark, ChevronLeft, MessageCircle, XCircle, Edit, Eye, Tag, Flag, MapPin } from "lucide-react";
+import { Bookmark, MessageCircle, XCircle, Edit, Eye, Tag, Flag, MapPin } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/context/auth-context";
 import { apiClient } from "@/lib/api-client";
@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { getApiErrorMessage, getApiErrorStatus } from "@/lib/api-error";
 import { DetailSkeleton } from "@/components/ui/detail-skeleton";
 import { ErrorState } from "@/components/ui/error-state";
+import { BackLink } from "@/components/layout/BackLink";
 import { CreateListing } from "@/components/create-listing";
 import { ReportModal } from "@/components/report-modal";
 import Link from "next/link";
@@ -195,10 +196,7 @@ export default function ListingDetailPage() {
       <div className="absolute bottom-[-30%] right-[-10%] w-[800px] h-[800px] rounded-full bg-accent/5 blur-[160px] pointer-events-none" />
 
       <div className="flex-1 w-full max-w-5xl mx-auto px-4 py-8 relative z-10">
-        <Link href="/marketplace" className="inline-flex items-center gap-2 text-sm font-semibold text-text-secondary hover:text-text-primary transition-colors mb-6">
-          <ChevronLeft className="h-4 w-4" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
-          Back to Marketplace
-        </Link>
+        <BackLink href="/marketplace" label="Back to Marketplace" />
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
           <div className="lg:col-span-3 space-y-4">

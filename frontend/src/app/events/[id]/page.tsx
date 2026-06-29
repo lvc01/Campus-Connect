@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import {
-  ChevronLeft,
   Loader2,
   MapPin,
   Clock,
@@ -20,6 +19,7 @@ import {
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Avatar } from "@/components/Avatar";
+import { BackLink } from "@/components/layout/BackLink";
 import { DetailSkeleton } from "@/components/ui/detail-skeleton";
 import { ErrorState } from "@/components/ui/error-state";
 import { useAuth } from "@/context/auth-context";
@@ -191,10 +191,7 @@ export default function EventDetailPage() {
       <div className="absolute top-[-30%] left-[-10%] w-[800px] h-[800px] rounded-full bg-accent/5 blur-[160px] pointer-events-none" />
 
       <div className="flex-1 w-full max-w-5xl mx-auto px-6 py-8 relative z-10">
-        <Link href="/events" className="inline-flex items-center gap-2 text-sm font-semibold text-text-secondary hover:text-text-primary transition-colors mb-6">
-          <ChevronLeft className="h-4 w-4" strokeWidth={2.5} />
-          Back to Events
-        </Link>
+        <BackLink href="/events" label="Back to Events" />
 
         {event.cover_image_url ? (
           <div className="relative h-64 rounded-2xl overflow-hidden mb-6">

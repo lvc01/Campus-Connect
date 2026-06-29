@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { ChevronLeft } from "lucide-react";
+import { BackLink } from "@/components/layout/BackLink";
 
 const FAQS: { q: string; a: string }[] = [
   {
@@ -34,10 +33,7 @@ export default function HelpPage() {
   return (
     <div className="flex-1 min-h-screen bg-background text-text-primary flex flex-col relative">
       <div className="flex-1 w-full max-w-2xl mx-auto px-4 py-6 relative z-10">
-        <Link href="/settings" className="inline-flex items-center gap-2 text-sm font-semibold text-text-secondary hover:text-text-primary transition-colors mb-6">
-          <ChevronLeft className="h-4 w-4" strokeWidth={2.5} />
-          Back to Settings
-        </Link>
+        <BackLink href="/settings" label="Back to Settings" />
 
         <h1 className="text-2xl font-black text-text-primary mb-2">Help Center</h1>
         <p className="text-sm text-text-muted mb-8">Answers to common questions.</p>

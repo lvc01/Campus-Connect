@@ -94,6 +94,37 @@ function getRelativeTime(dateStr: string): string {
   });
 }
 
+// Collapse repeated actor-driven notifications on the same post into one row
+// ("X and N others liked your post"). Other types stay individual.
+const GROUP_VERB: Record<string, string> = {
+  like: "liked your post",
+  repost: "reposted your post",
+  comment: "commented on your post",
+};
+
+interface NotifGroup {
+  key: string;
+  items: NotificationData[];
+}
+
+function buildGroups(ns: NotificationData[]): NotifGroup[] {
+  const groups: NotifGroup[] = [];
+  const index = new Map<string, NotifGroup>();
+  for (const n of ns) {
+    const pid = n.data && n.data.post_id != null ? String(n.data.post_id) : "";
+    const groupable = !!pid && (n.type === "like" || n.type === "repost" || n.type === "comment");
+    const key = groupable ? `${n.type}:${pid}` : `single:${n.id}`;
+    let g = index.get(key);
+    if (!g) {
+      g = { key, items: [] };
+      index.set(key, g);
+      groups.push(g);
+    }
+    g.items.push(n);
+  }
+  return groups;
+}
+
 export default function NotificationsPage() {
   const { user } = useAuth();
   const { notifications, loading, hasMore, fetchMore, markRead, markAllRead } =
@@ -102,15 +133,11 @@ export default function NotificationsPage() {
 
   const unreadNotifications = notifications.filter((n) => !n.is_read);
 
-  const handleNotificationClick = async (n: NotificationData) => {
-    if (!n.is_read) {
-      await markRead([n.id]);
-    }
-
-    const route = getNotificationRoute(n);
-    if (route) {
-      router.push(route);
-    }
+  const handleGroupClick = async (items: NotificationData[]) => {
+    const unreadIds = items.filter((n) => !n.is_read).map((n) => n.id);
+    if (unreadIds.length) await markRead(unreadIds);
+    const route = getNotificationRoute(items[0]);
+    if (route) router.push(route);
   };
 
   const handleMarkAllRead = async () => {
@@ -146,21 +173,26 @@ export default function NotificationsPage() {
         />
       ) : (
         <ul>
-          {notifications.map((n) => {
+          {buildGroups(notifications).map((group) => {
+            const items = group.items;
+            const n = items[0];
+            const grouped = items.length > 1;
             const config = NOTIFICATION_CONFIG[n.type] || NOTIFICATION_CONFIG.system;
             const Icon = config.icon;
             const route = getNotificationRoute(n);
             const isClickable = !!route;
+            const anyUnread = items.some((it) => !it.is_read);
+            const actorName = n.actor?.profile?.display_name || n.actor?.email || "System";
 
             return (
-              <li key={n.id}>
+              <li key={group.key}>
                 <button
-                  onClick={() => handleNotificationClick(n)}
+                  onClick={() => handleGroupClick(items)}
                   disabled={!isClickable}
                   className={cn(
                     "w-full flex items-start gap-3 border-b border-border p-4 text-left transition-colors",
                     isClickable && "hover:bg-surface/60 active:bg-surface/80",
-                    !n.is_read && "bg-surface/40"
+                    anyUnread && "bg-surface/40"
                   )}
                 >
                   {/* Actor avatar with overlaid type-icon badge (mobile style) */}
@@ -185,12 +217,15 @@ export default function NotificationsPage() {
                   {/* Content */}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-text-primary leading-snug">
-                      <span className="font-semibold">
-                        {n.actor?.profile?.display_name ||
-                          n.actor?.email ||
-                          "System"}
-                      </span>{" "}
-                      {n.body || n.title}
+                      <span className="font-semibold">{actorName}</span>{" "}
+                      {grouped ? (
+                        <>
+                          and {items.length - 1} {items.length - 1 === 1 ? "other" : "others"}{" "}
+                          {GROUP_VERB[n.type] || n.body || n.title}
+                        </>
+                      ) : (
+                        n.body || n.title
+                      )}
                     </p>
                     <p className="text-xs text-text-secondary mt-1">
                       {getRelativeTime(n.created_at)}
@@ -198,7 +233,7 @@ export default function NotificationsPage() {
                   </div>
 
                   {/* Unread dot */}
-                  {!n.is_read && (
+                  {anyUnread && (
                     <span className="mt-2 h-2.5 w-2.5 shrink-0 rounded-full bg-accent" />
                   )}
                 </button>
