@@ -33,6 +33,12 @@ class ListingCategory(str, enum.Enum):
     accommodation = "accommodation"
     tutoring = "tutoring"
     electronics = "electronics"
+    clothing = "clothing"
+    furniture = "furniture"
+    sports = "sports"
+    food = "food"
+    transport = "transport"
+    services = "services"
     other = "other"
 
 
@@ -90,6 +96,7 @@ class MarketplaceListing(Base, TimestampMixin, SoftDeleteMixin):
         Numeric(10, 2), nullable=True,
     )
     view_count: Mapped[int] = mapped_column(Integer, default=0)
+    location: Mapped[str | None] = mapped_column(String(300), nullable=True)
 
     # ── Relationships ─────────────────────────────────────────────────
     seller: Mapped["User"] = relationship(back_populates="marketplace_listings")  # type: ignore[name-defined]
@@ -110,7 +117,7 @@ class MarketplaceListing(Base, TimestampMixin, SoftDeleteMixin):
 # ── Listing Image ────────────────────────────────────────────────────
 
 class ListingImage(Base, TimestampMixin):
-    """An image attached to a marketplace listing."""
+    """An image or video attached to a marketplace listing."""
 
     __tablename__ = "listing_images"
 
@@ -119,13 +126,14 @@ class ListingImage(Base, TimestampMixin):
         ForeignKey("marketplace_listings.id", ondelete="CASCADE"), nullable=False,
     )
     url: Mapped[str] = mapped_column(String(500), nullable=False)
+    media_type: Mapped[str] = mapped_column(String(20), default="image")
     order: Mapped[int] = mapped_column(Integer, default=0)
 
     # ── Relationships ─────────────────────────────────────────────────
     listing: Mapped["MarketplaceListing"] = relationship(back_populates="images")
 
     def __repr__(self) -> str:
-        return f"<ListingImage id={self.id} order={self.order}>"
+        return f"<ListingImage id={self.id} type={self.media_type} order={self.order}>"
 
 
 # ── Seller Rating ────────────────────────────────────────────────────

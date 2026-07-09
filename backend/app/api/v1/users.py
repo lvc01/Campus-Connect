@@ -15,10 +15,14 @@ from app.core.dependencies import get_current_user
 from app.models.user import User
 from app.schemas.post import FeedResponse, CommentListResponse
 from app.schemas.user import (
+    ChangePasswordRequest,
     ProfileResponse,
     PublicProfileResponse,
     UpdateProfileRequest,
+    UpdateUserSettingsRequest,
+    UpdateUsernameRequest,
     UserResponse,
+    UserSettingsResponse,
 )
 from app.services.post_service import get_post_service
 from app.services.user_service import get_user_service
@@ -182,3 +186,133 @@ async def get_user_reposts(
   post_service = get_post_service()
   result = await post_service.get_user_reposts(user_id, cursor, limit, db)
   return FeedResponse.model_validate(result)
+
+
+# ── User Settings Endpoints ────────────────────────────────────────────
+
+@router.get(
+    "/me/settings",
+    response_model=UserSettingsResponse,
+    summary="Get user settings",
+)
+async def get_user_settings(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> UserSettingsResponse:
+    """Get the current user's notification and privacy settings."""
+    from app.models.user import UserSettings
+    from sqlalchemy import select
+
+    result = await db.execute(
+        select(UserSettings).where(UserSettings.user_id == current_user.id)
+    )
+    settings = result.scalar_one_or_none()
+
+    if not settings:
+        settings = UserSettings(user_id=current_user.id)
+        db.add(settings)
+        await db.flush()
+
+    return UserSettingsResponse.model_validate(settings)
+
+
+@router.patch(
+    "/me/settings",
+    response_model=UserSettingsResponse,
+    summary="Update user settings",
+)
+async def update_user_settings(
+    data: UpdateUserSettingsRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> UserSettingsResponse:
+    """Update the current user's notification and privacy settings."""
+    from app.models.user import UserSettings
+    from sqlalchemy import select
+
+    result = await db.execute(
+        select(UserSettings).where(UserSettings.user_id == current_user.id)
+    )
+    settings = result.scalar_one_or_none()
+
+    if not settings:
+        settings = UserSettings(user_id=current_user.id)
+        db.add(settings)
+        await db.flush()
+
+    update_data = data.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(settings, field, value)
+
+    await db.commit()
+    await db.refresh(settings)
+
+    return UserSettingsResponse.model_validate(settings)
+
+
+@router.post(
+    "/me/change-password",
+    summary="Change password",
+)
+async def change_password(
+    data: ChangePasswordRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Change the current user's password."""
+    from app.core.security import verify_password, hash_password
+
+    if not verify_password(data.current_password, current_user.hashed_password):
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+
+    current_user.hashed_password = hash_password(data.new_password)
+    await db.commit()
+
+    return {"message": "Password changed successfully"}
+
+
+@router.patch(
+    "/me/username",
+    response_model=UserResponse,
+    summary="Update username",
+)
+async def update_username(
+    data: UpdateUsernameRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> UserResponse:
+    """Update the current user's username."""
+    from fastapi import HTTPException
+    from sqlalchemy import select
+
+    # Check if username is already taken
+    existing = await db.execute(
+        select(User).where(User.username == data.username, User.id != current_user.id)
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Username is already taken")
+
+    current_user.username = data.username
+    await db.commit()
+    await db.refresh(current_user)
+
+    return UserResponse.model_validate(current_user)
+
+
+@router.delete(
+    "/me",
+    summary="Delete account",
+)
+async def delete_account(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Soft-delete the current user's account."""
+    from datetime import datetime, timezone
+
+    current_user.deleted_at = datetime.now(timezone.utc)
+    current_user.is_active = False
+    await db.commit()
+
+    return {"message": "Account deleted successfully"}

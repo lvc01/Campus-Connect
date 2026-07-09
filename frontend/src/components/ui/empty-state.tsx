@@ -40,7 +40,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
           </span>
         </div>
       )}
-      <h3 className="text-base font-semibold text-text-primary leading-snug">
+      <h3 className="font-display text-h2 font-medium text-text-primary leading-snug">
         {title}
       </h3>
       {description && (

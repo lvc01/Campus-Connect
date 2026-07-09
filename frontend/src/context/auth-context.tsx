@@ -17,6 +17,7 @@ interface UserProfile {
 interface User {
   id: string;
   email: string;
+  username?: string | null;
   role: string;
   is_verified: boolean;
   is_active: boolean;
@@ -68,34 +69,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchCurrentUser = async () => {
     try {
+      // With httpOnly cookies, the browser sends the access_token automatically.
+      // No need to set Authorization header — withCredentials: true handles it.
       const response = await apiClient.get<User>("/auth/me");
       setUser(response.data);
     } catch {
       // Clear session if fetch fails and cannot be refreshed
       setUser(null);
-      localStorage.removeItem("cc_access_token");
-      localStorage.removeItem("cc_refresh_token");
     } finally {
       setLoading(false);
     }
   };
 
-  // Restore session on mount
+  // Restore session on mount — just try calling /auth/me; if the cookie
+  // is valid, the backend returns the user.  If not, the 401 interceptor
+  // will attempt a refresh, and only then clear the session.
   useEffect(() => {
-    const accessToken = localStorage.getItem("cc_access_token");
-    if (accessToken) {
-      fetchCurrentUser();
-    } else {
-      setLoading(false);
-    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchCurrentUser();
   }, []);
 
   // Listen for session-expired events from the API client (soft redirect)
   useEffect(() => {
     const handleSessionExpired = () => {
       setUser(null);
-      localStorage.removeItem("cc_access_token");
-      localStorage.removeItem("cc_refresh_token");
       router.push("/login");
     };
     window.addEventListener("auth:session-expired", handleSessionExpired);
@@ -107,7 +104,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!loading) {
       const publicPaths = ["/login", "/register", "/verify-otp", "/forgot-password", "/reset-password", "/"];
       const isPublic = publicPaths.includes(pathname);
-      
+
       if (!user && !isPublic) {
         router.push("/login");
       } else if (user && isPublic && pathname !== "/") {
@@ -130,10 +127,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const verifyOtp = async (email: string, code: string): Promise<User> => {
     const response = await apiClient.post("/auth/verify-otp", { email, code });
-    const { access_token, refresh_token, user: loggedUser } = response.data;
-    
-    localStorage.setItem("cc_access_token", access_token);
-    localStorage.setItem("cc_refresh_token", refresh_token);
+    // Backend sets httpOnly cookies via Set-Cookie headers — no localStorage needed.
+    const loggedUser = response.data.user;
     setUser(loggedUser);
     return loggedUser;
   };
@@ -145,10 +140,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (payload: LoginPayload): Promise<User> => {
     const response = await apiClient.post("/auth/login", payload);
-    const { access_token, refresh_token, user: loggedUser } = response.data;
-    
-    localStorage.setItem("cc_access_token", access_token);
-    localStorage.setItem("cc_refresh_token", refresh_token);
+    // Backend sets httpOnly cookies via Set-Cookie headers — no localStorage needed.
+    const loggedUser = response.data.user;
     setUser(loggedUser);
     return loggedUser;
   };
@@ -160,8 +153,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Proceed with local logout even if API call fails
     } finally {
       setUser(null);
-      localStorage.removeItem("cc_access_token");
-      localStorage.removeItem("cc_refresh_token");
       router.push("/login");
     }
   };

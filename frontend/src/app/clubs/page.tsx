@@ -70,6 +70,7 @@ export default function ClubsPage() {
 
   useEffect(() => {
     if (!user) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     apiClient.get("/clubs").then((res) => {
       const data = Array.isArray(res.data) ? res.data : [];
@@ -112,8 +113,8 @@ export default function ClubsPage() {
     }
   };
 
-  const handleClubCreated = (newClub: any) => {
-    setClubs((prev) => [{ ...newClub, is_member: true, member_count: 1, is_verified: false, is_premium: false, logo_url: null, banner_url: null }, ...prev]);
+  const handleClubCreated = (newClub: { id: string; name: string; description: string | null; category: string; logo_url: string | null; banner_url: string | null }) => {
+    setClubs((prev) => [{ ...newClub, is_member: true, member_count: 1, is_verified: false, is_premium: false, slug: "", logo_url: null, banner_url: null }, ...prev]);
     toast.success("Club created! Awaiting moderator approval.");
   };
 
@@ -125,7 +126,7 @@ export default function ClubsPage() {
       <div className="px-6 py-4">
         {/* Search + Create Club */}
         <div className="flex items-center gap-3">
-          <div className="flex-1 flex items-center gap-2 rounded-full border border-border bg-surface px-4 py-2.5 transition-colors focus-within:border-accent">
+          <div className="flex-1 flex items-center gap-2 rounded-full border border-border-strong bg-surface px-4 py-2.5 transition-colors focus-within:border-accent">
             <Search className="h-4 w-4 text-text-secondary shrink-0" />
             <input
               value={q}
@@ -151,7 +152,7 @@ export default function ClubsPage() {
               "rounded-full border px-3 py-1 text-caption font-semibold transition-all",
               showMyClubs
                 ? "border-accent bg-accent text-accent-foreground"
-                : "border-border text-text-secondary hover:bg-surface",
+                : "border-border-strong text-text-secondary hover:bg-surface",
             )}
           >
             My Clubs
@@ -165,7 +166,7 @@ export default function ClubsPage() {
                 "rounded-full border px-3 py-1 text-caption font-medium transition-all",
                 cat === c
                   ? "border-accent bg-accent text-accent-foreground"
-                  : "border-border text-text-secondary hover:bg-surface",
+                  : "border-border-strong text-text-secondary hover:bg-surface",
               )}
             >
               {c === "All" ? "All" : CATEGORY_MAP[c] || c}
@@ -177,32 +178,32 @@ export default function ClubsPage() {
         {loading ? (
           <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div key={i} className="rounded-xl border border-border bg-card p-5 animate-pulse">
+              <div key={i} className="rounded-xl border border-border-strong bg-surface p-5 animate-pulse reveal-up" style={{ animationDelay: `${i * 40}ms` }}>
                 <div className="flex items-center gap-3 mb-3">
-                  <div className="h-12 w-12 rounded-xl bg-surface" />
+                  <div className="h-12 w-12 rounded-xl bg-border-strong" />
                   <div className="flex-1 space-y-2">
-                    <div className="h-4 bg-surface rounded w-2/3" />
-                    <div className="h-3 bg-surface rounded w-1/3" />
+                    <div className="h-4 bg-border-strong rounded w-2/3" />
+                    <div className="h-3 bg-border-strong rounded w-1/3" />
                   </div>
                 </div>
                 <div className="space-y-2 mb-4">
-                  <div className="h-3 bg-surface rounded w-full" />
-                  <div className="h-3 bg-surface rounded w-4/5" />
+                  <div className="h-3 bg-border-strong rounded w-full" />
+                  <div className="h-3 bg-border-strong rounded w-4/5" />
                 </div>
-                <div className="h-9 bg-surface rounded-full" />
+                <div className="h-9 bg-border-strong rounded-full" />
               </div>
             ))}
           </div>
         ) : filtered.length === 0 ? (
           /* Empty State */
-          <div className="mt-16 flex flex-col items-center justify-center text-center">
+          <div className="mt-16 flex flex-col items-center justify-center text-center reveal-up stagger-1">
             <div className="w-16 h-16 rounded-2xl bg-surface flex items-center justify-center mb-4">
               <Users className="h-8 w-8 text-text-secondary" />
             </div>
-            <h3 className="text-h3 font-bold text-text-primary">
+            <h3 className="font-display text-h2 font-medium text-text-primary leading-tight">
               {showMyClubs ? "You haven't joined any clubs" : q ? "No clubs found" : "No clubs yet"}
             </h3>
-            <p className="text-body-sm text-text-secondary mt-1 max-w-xs">
+            <p className="font-sans text-body-sm text-text-secondary mt-1 max-w-xs leading-relaxed">
               {showMyClubs
                 ? "Browse the directory and join clubs that interest you."
                 : q
@@ -212,7 +213,7 @@ export default function ClubsPage() {
             {!showMyClubs && !q && (
               <button
                 onClick={() => setShowCreateModal(true)}
-                className="mt-4 flex items-center gap-2 px-5 py-2.5 rounded-full bg-accent text-accent-foreground text-body-sm font-semibold hover:opacity-90 active:scale-95 transition-all"
+                className="mt-4 flex items-center gap-2 px-5 py-2.5 rounded-full bg-accent text-accent-foreground text-body-sm font-semibold hover:bg-accent-press active:scale-95 transition-all"
               >
                 <Plus className="h-4 w-4" />
                 Create Club
@@ -225,25 +226,25 @@ export default function ClubsPage() {
             {filtered.map((club, idx) => {
               const catColor = CATEGORY_COLORS[club.category] || CATEGORY_COLORS.other;
               const catLabel = CATEGORY_MAP[club.category] || club.category;
+              const stagger = Math.min(idx + 1, 8);
               return (
                 <Link
                   key={club.id}
                   href={`/clubs/${club.slug}`}
-                  className="group rounded-xl border border-border bg-card p-5 hover:border-accent/30 hover:shadow-md transition-all duration-200 active:scale-[0.98]"
-                  style={{ animationDelay: `${idx * 40}ms` }}
+                  className={`group rounded-xl border border-border-strong bg-surface p-5 hover:border-accent/30 hover:shadow-md transition-all duration-200 active:scale-[0.98] reveal-up stagger-${stagger}`}
                 >
                   {/* Header: Logo + Name */}
                   <div className="flex items-center gap-3 mb-3">
                     {club.logo_url ? (
-                      <img src={club.logo_url} alt="" className="h-12 w-12 rounded-xl object-cover border border-border" />
+                      <img src={club.logo_url} alt="" className="h-12 w-12 rounded-xl object-cover border border-border-strong" />
                     ) : (
                       <div className="h-12 w-12 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
-                        <span className="text-accent font-bold text-lg">{getInitials(club.name)}</span>
+                        <span className="font-display text-h2 text-accent font-medium">{getInitials(club.name)}</span>
                       </div>
                     )}
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
-                        <p className="text-body-sm font-bold text-text-primary truncate group-hover:text-accent transition-colors">
+                        <p className="font-display text-body-sm font-medium text-text-primary truncate group-hover:text-accent transition-colors">
                           {club.name}
                         </p>
                         {club.is_verified && <Verified className="h-3.5 w-3.5 text-sky-400 shrink-0" fill="currentColor" />}
@@ -253,7 +254,7 @@ export default function ClubsPage() {
                         <span className={cn("px-1.5 py-0.5 rounded text-[10px] font-bold uppercase", catColor.bg, catColor.text, "border", catColor.border)}>
                           {catLabel}
                         </span>
-                        <span className="text-[11px] text-text-secondary">
+                        <span className="font-sans text-caption text-text-secondary">
                           {formatMemberCount(club.member_count)} members
                         </span>
                       </div>
@@ -262,7 +263,7 @@ export default function ClubsPage() {
 
                   {/* Description */}
                   {club.description && (
-                    <p className="text-caption text-text-secondary line-clamp-2 mb-3">
+                    <p className="font-sans text-body-sm text-text-secondary line-clamp-2 mb-3 leading-relaxed">
                       {club.description}
                     </p>
                   )}
@@ -272,10 +273,10 @@ export default function ClubsPage() {
                     onClick={(e) => handleJoinLeave(club, e)}
                     disabled={joiningClubId === club.id}
                     className={cn(
-                      "w-full rounded-full py-2 text-body-sm font-semibold transition-all active:scale-95 disabled:opacity-50",
+                      "w-full rounded-full py-2 font-sans text-body-sm font-semibold transition-all active:scale-95 disabled:opacity-50",
                       club.is_member
-                        ? "bg-surface border border-border text-text-secondary hover:border-accent/30 hover:text-accent"
-                        : "bg-accent text-accent-foreground hover:opacity-90",
+                        ? "bg-surface border border-border-strong text-text-secondary hover:border-accent/30 hover:text-accent"
+                        : "bg-accent text-accent-foreground hover:bg-accent-press",
                     )}
                   >
                     {joiningClubId === club.id ? (

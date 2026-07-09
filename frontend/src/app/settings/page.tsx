@@ -8,13 +8,11 @@ import {
   Lock,
   LogOut,
   Loader2,
-  User,
   Key,
   AtSign,
   Bell,
   Eye,
   HelpCircle,
-  MessageSquare,
   Info,
   Trash2,
   Shield,
@@ -76,13 +74,9 @@ export default function SettingsPage() {
     show_online_status: true,
     show_read_receipts: true,
   });
-  const [saving, setSaving] = useState(false);
+  const [, setSaving] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
-
-  useEffect(() => {
-    fetchSettings();
-  }, []);
 
   async function fetchSettings() {
     try {
@@ -92,6 +86,11 @@ export default function SettingsPage() {
       setLoading(false);
     }
   }
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchSettings();
+  }, []);
 
   async function updateSettings(patch: Partial<UserSettings>) {
     const next = { ...settings, ...patch };
@@ -172,21 +171,21 @@ export default function SettingsPage() {
   const username = user?.username || user?.email?.split("@")[0] || "user";
 
   return (
-    <div className="flex-1 min-h-screen bg-bg text-text-primary flex flex-col relative">
+    <div className="flex-1 min-h-screen bg-background text-text-primary flex flex-col relative">
       <div className="flex-1 w-full max-w-2xl mx-auto px-4 py-6 relative z-10">
         <BackLink href="/" />
 
-        <h1 className="text-2xl font-black text-text-primary mb-6">Settings</h1>
+        <h1 className="font-display text-h1 font-medium text-text-primary mb-6">Settings</h1>
 
         {loading ? (
           <div className="flex items-center justify-center p-12">
-            <Loader2 className="h-8 w-8 animate-spin text-text-muted" />
+            <Loader2 className="h-8 w-8 animate-spin text-text-tertiary" />
           </div>
         ) : (
           <div className="space-y-6">
             {/* Profile card */}
             <div
-              className="bg-bg-elevated border border-border rounded-2xl p-6 cursor-pointer hover:border-accent/30 transition-colors"
+              className="bg-surface border border-border rounded-2xl p-6 cursor-pointer hover:border-accent/30 transition-colors"
               onClick={() => router.push(`/profile/${user?.id}`)}
             >
               <div className="flex items-center gap-4">
@@ -195,14 +194,14 @@ export default function SettingsPage() {
                   <h3 className="text-lg font-bold text-text-primary truncate">
                     {displayName}
                   </h3>
-                  <p className="text-sm text-text-muted truncate">{user?.email}</p>
+                  <p className="text-sm text-text-tertiary truncate">{user?.email}</p>
                   {user?.username && (
                     <p className="text-sm text-accent font-semibold mt-0.5">
                       @{user.username}
                     </p>
                   )}
                 </div>
-                <ChevronRight className="h-5 w-5 text-text-muted shrink-0" />
+                <ChevronRight className="h-5 w-5 text-text-tertiary shrink-0" />
               </div>
             </div>
 
@@ -211,9 +210,9 @@ export default function SettingsPage() {
               <div className="px-4 py-3 flex items-center gap-3">
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-text-primary">Theme</p>
-                  <p className="text-xs text-text-muted mt-0.5">Choose how Campus Connect looks</p>
+                  <p className="text-xs text-text-tertiary mt-0.5">Choose how Campus Connect looks</p>
                 </div>
-                <div className="flex items-center rounded-full border border-border bg-bg-surface p-0.5">
+                <div className="flex items-center rounded-full border border-border bg-surface p-0.5">
                   <button
                     onClick={() => setTheme("light")}
                     aria-pressed={theme === "light"}
@@ -339,13 +338,13 @@ export default function SettingsPage() {
                 onClick={toggleBlockedPanel}
               />
               {showBlocked && (
-                <div className="px-4 py-3 border-t border-border bg-bg-surface/40">
+                <div className="px-4 py-3 border-t border-border bg-surface/40">
                   {blockedLoading ? (
                     <div className="flex justify-center py-3">
-                      <Loader2 className="h-5 w-5 animate-spin text-text-muted" />
+                      <Loader2 className="h-5 w-5 animate-spin text-text-tertiary" />
                     </div>
                   ) : blocked.length === 0 ? (
-                    <p className="text-sm text-text-muted py-2 text-center">You haven&apos;t blocked anyone.</p>
+                    <p className="text-sm text-text-tertiary py-2 text-center">You haven&apos;t blocked anyone.</p>
                   ) : (
                     <div className="space-y-2">
                       {blocked.map((b) => (
@@ -353,7 +352,7 @@ export default function SettingsPage() {
                           <Avatar user={{ id: b.id, display_name: b.display_name, email: b.email }} size={32} />
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-text-primary truncate">{b.display_name || b.email.split("@")[0]}</p>
-                            <p className="text-xs text-text-muted truncate">{b.email}</p>
+                            <p className="text-xs text-text-tertiary truncate">{b.email}</p>
                           </div>
                           <button
                             onClick={() => handleUnblock(b.id)}
@@ -427,7 +426,7 @@ export default function SettingsPage() {
             </Section>
 
             {/* Danger Zone */}
-            <div className="bg-bg-elevated border border-border rounded-2xl overflow-hidden">
+            <div className="bg-surface border border-border rounded-2xl overflow-hidden">
               <div className="p-4 space-y-1">
                 <button
                   onClick={handleLogout}
@@ -465,7 +464,7 @@ export default function SettingsPage() {
                     </button>
                     <button
                       onClick={() => setShowDeleteConfirm(false)}
-                      className="flex-1 px-4 py-2.5 bg-bg border border-border text-text-secondary rounded-xl text-sm font-semibold hover:bg-bg-surface transition-colors"
+                      className="flex-1 px-4 py-2.5 bg-background border border-border text-text-secondary rounded-xl text-sm font-semibold hover:bg-surface transition-colors"
                     >
                       Cancel
                     </button>
@@ -474,7 +473,7 @@ export default function SettingsPage() {
               )}
             </div>
 
-            <p className="text-xs text-text-muted text-center pb-8">
+            <p className="text-xs text-text-tertiary text-center pb-8">
               Campus Connect v1.0.0
             </p>
           </div>
@@ -494,9 +493,9 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <div className="bg-bg-elevated border border-border rounded-2xl overflow-hidden">
+    <div className="bg-surface border border-border rounded-2xl overflow-hidden">
       <div className="px-6 py-4 border-b border-border">
-        <h3 className="text-xs font-bold text-text-muted uppercase tracking-wider flex items-center gap-2">
+        <h3 className="text-xs font-bold text-text-tertiary uppercase tracking-wider flex items-center gap-2">
           <Icon className="h-4 w-4" />
           {title}
         </h3>
@@ -525,7 +524,7 @@ function SettingsRow({
     <button
       onClick={onClick}
       disabled={!onClick}
-      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-bg-surface transition-colors text-left disabled:cursor-default"
+      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-surface transition-colors text-left disabled:cursor-default"
     >
       <div
         className="w-8 h-8 rounded-lg flex items-center justify-center"
@@ -538,7 +537,7 @@ function SettingsRow({
         <span className="text-sm text-text-secondary mr-1">{value}</span>
       )}
       {showChevron && onClick && (
-        <ChevronRight className="h-4 w-4 text-text-muted shrink-0" />
+        <ChevronRight className="h-4 w-4 text-text-tertiary shrink-0" />
       )}
     </button>
   );
@@ -570,7 +569,7 @@ function ToggleRow({
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-text-primary">{label}</p>
         {description && (
-          <p className="text-xs text-text-muted mt-0.5">{description}</p>
+          <p className="text-xs text-text-tertiary mt-0.5">{description}</p>
         )}
       </div>
       <button
@@ -578,7 +577,7 @@ function ToggleRow({
         aria-checked={checked}
         onClick={() => onChange(!checked)}
         className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-accent/50 focus:ring-offset-2 focus:ring-offset-bg-elevated ${
-          checked ? "bg-accent" : "bg-bg-surface border-border"
+          checked ? "bg-accent" : "bg-surface border-border"
         }`}
       >
         <span

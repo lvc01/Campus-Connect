@@ -168,7 +168,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ profile, isOwn, on
             {isOwn ? (
               <Link
                 href="/profile/setup"
-                className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-text-primary border border-border rounded-full hover:bg-bg-elevated transition-colors"
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-text-primary border border-border rounded-full hover:bg-surface transition-colors"
               >
                 <Pencil size={14} />
                 Edit profile
@@ -188,7 +188,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ profile, isOwn, on
         {/* Name + handle + meta */}
         <div className="mt-4">
           <div className="flex items-center gap-2 flex-wrap">
-            <h1 className="text-2xl font-black text-text-primary tracking-tight">
+            <h1 className="font-display text-display font-medium text-text-primary leading-tight">
               {displayName}
             </h1>
             {roleBadge && (
@@ -212,7 +212,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ profile, isOwn, on
           </div>
 
           {p?.bio && (
-            <p className="mt-3 text-[15px] text-text-primary leading-relaxed max-w-2xl">
+            <p className="mt-3 font-sans text-body text-text-primary leading-relaxed max-w-2xl">
               {p.bio}
             </p>
           )}
@@ -258,9 +258,9 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ profile, isOwn, on
 };
 
 const StatCard: React.FC<{ label: string; value: number }> = ({ label, value }) => (
-  <div className="bg-bg-elevated border border-border rounded-xl p-3.5 text-center">
-    <p className="text-xl font-black text-text-primary tabular-nums">{value}</p>
-    <p className="text-[10px] font-bold tracking-widest text-text-secondary uppercase mt-0.5">
+  <div className="bg-surface border border-border-strong rounded-xl p-3.5 text-center">
+    <p className="font-display text-h2 font-medium text-text-primary tabular-nums leading-none">{value}</p>
+    <p className="mt-1.5 font-sans text-overline uppercase tracking-[0.12em] font-medium text-text-secondary">
       {label}
     </p>
   </div>

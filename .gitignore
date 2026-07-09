@@ -69,3 +69,6 @@ coverage.xml
 output/
 .trash/
 /tmp/
+
+# Runtime uploads
+backend/uploads/

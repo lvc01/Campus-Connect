@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Plus, Shield, Sparkles } from "lucide-react";
+import { Plus, Shield } from "lucide-react";
 import { navItems } from "./nav-config";
 import { useAuth } from "@/context/auth-context";
 import { apiClient } from "@/lib/api-client";
@@ -50,8 +51,14 @@ export function LeftRail() {
         href="/"
         className="mb-2 flex h-10 items-center gap-2 px-2 xl:px-3"
       >
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent text-accent-foreground">
-          <Sparkles className="h-5 w-5" />
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent overflow-hidden">
+          <Image
+            src="/logo-white.png"
+            alt="Campus Connect"
+            width={36}
+            height={36}
+            className="object-contain"
+          />
         </span>
         <span className="hidden text-h3 font-bold text-text-primary xl:inline">
           Campus Connect
@@ -128,12 +135,7 @@ export function LeftRail() {
       </button>
 
       <div className="mt-auto flex flex-col gap-1 pt-3">
-        <div className="flex items-center gap-2 px-1 xl:px-0">
-          <ThemeToggle />
-          <span className="hidden text-body-sm text-text-secondary xl:inline">
-            Theme
-          </span>
-        </div>
+        <ThemeToggle />
         <UserChip collapsed className="xl:hidden" />
         <UserChip className="hidden xl:flex" />
       </div>

@@ -36,7 +36,7 @@ export default function HelpPage() {
         <BackLink href="/settings" label="Back to Settings" />
 
         <h1 className="text-2xl font-black text-text-primary mb-2">Help Center</h1>
-        <p className="text-sm text-text-muted mb-8">Answers to common questions.</p>
+        <p className="text-sm text-text-tertiary mb-8">Answers to common questions.</p>
 
         <div className="space-y-6">
           {FAQS.map((f) => (

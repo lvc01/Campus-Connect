@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   Heart,
@@ -149,7 +148,7 @@ export default function NotificationsPage() {
   return (
     <LayoutShell>
       <div className="flex items-center justify-between px-6 pt-4 pb-2">
-        <h1 className="text-xl font-black text-text-primary">Notifications</h1>
+        <h1 className="font-display text-h1 font-medium text-text-primary">Notifications</h1>
         {unreadNotifications.length > 0 && (
           <button
             onClick={handleMarkAllRead}
@@ -190,7 +189,7 @@ export default function NotificationsPage() {
                   onClick={() => handleGroupClick(items)}
                   disabled={!isClickable}
                   className={cn(
-                    "w-full flex items-start gap-3 border-b border-border p-4 text-left transition-colors",
+                    "w-full flex items-start gap-3 border-b border-border-quiet p-4 text-left transition-colors",
                     isClickable && "hover:bg-surface/60 active:bg-surface/80",
                     anyUnread && "bg-surface/40"
                   )}

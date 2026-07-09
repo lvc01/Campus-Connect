@@ -54,11 +54,13 @@ else
 fi
 
 # Write frontend env if missing so api-client knows the backend port.
+# In dev, API calls are proxied through Next.js rewrites (same-origin)
+# so cookies work with both localhost and dev tunnels.
 # Existing .env.local is never overwritten.
 ENV_LOCAL="$ROOT/frontend/.env.local"
 if [ ! -f "$ENV_LOCAL" ]; then
   cat > "$ENV_LOCAL" <<EOF
-NEXT_PUBLIC_API_URL=http://localhost:${BACKEND_PORT}/api/v1
+# Proxied through Next.js rewrites — no direct backend URL needed.
 EOF
   echo "[dev.sh] wrote $ENV_LOCAL"
 fi

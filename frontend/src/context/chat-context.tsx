@@ -79,6 +79,7 @@ interface ChatContextValue {
   refreshConversations: () => Promise<void>;
   typingUsers: Set<string>;
   sendTyping: (convId: string, isTyping: boolean) => void;
+  readReceipts: Record<string, Record<string, string>>;
 }
 
 const ChatContext = createContext<ChatContextValue | null>(null);
@@ -144,15 +145,47 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     }
   }, [activeConvId, nextCursor, messagesLoading, fetchMessages]);
 
+  // Track last_read_at per conversation member: {convId: {userId: last_read_at}}
+  const [readReceipts, setReadReceipts] = useState<Record<string, Record<string, string>>>({});
+
+  // Initialize readReceipts from conversation member data
+  useEffect(() => {
+    const next: Record<string, Record<string, string>> = {};
+    for (const conv of conversations) {
+      for (const member of conv.members) {
+        if (member.last_read_at) {
+          next[conv.id] = next[conv.id] || {};
+          next[conv.id][member.user.id] = member.last_read_at;
+        }
+      }
+    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setReadReceipts((prev) => ({ ...prev, ...next }));
+  }, [conversations]);
+
+  // Mark read
+  const markRead = useCallback(async (convId: string) => {
+    try {
+      await apiClient.post(`/messaging/conversations/${convId}/read`);
+      setConversations((prev) =>
+        prev.map((c) => (c.id === convId ? { ...c, unread_count: 0 } : c))
+      );
+      setUnreadTotal((prev) => Math.max(0, prev - 1));
+    } catch (err) {
+      console.error("Failed to mark read", err);
+    }
+  }, []);
+
   // Switch active conversation
   const handleSetActiveConvId = useCallback((id: string | null) => {
     setActiveConvId(id);
     if (id) {
       fetchMessages(id);
+      markRead(id);
     } else {
       setMessages([]);
     }
-  }, [fetchMessages]);
+  }, [fetchMessages, markRead]);
 
   // Send message
   const sendMessage = useCallback(async (content: string, messageType: string = "text", fileUrl?: string, replyToId?: string) => {
@@ -257,19 +290,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Mark read
-  const markRead = useCallback(async (convId: string) => {
-    try {
-      await apiClient.post(`/messaging/conversations/${convId}/read`);
-      setConversations((prev) =>
-        prev.map((c) => (c.id === convId ? { ...c, unread_count: 0 } : c))
-      );
-      setUnreadTotal((prev) => Math.max(0, prev - 1));
-    } catch (err) {
-      console.error("Failed to mark read", err);
-    }
-  }, []);
-
   // Create DM
   const createDM = useCallback(async (userId: string): Promise<string | null> => {
     try {
@@ -288,6 +308,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   // Initial load
   useEffect(() => {
     if (user) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       refreshConversations();
     }
   }, [user, refreshConversations]);
@@ -298,6 +319,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
     let unsubNewMessage: (() => void) | null = null;
     let unsubTyping: (() => void) | null = null;
+    let unsubRead: (() => void) | null = null;
 
     fetchWsToken().then((token) => {
       if (!token) return;
@@ -326,11 +348,22 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           });
         }
       });
+
+      unsubRead = ws.on("read", (data: { conversation_id: string; user_id: string; last_read_at: string }) => {
+        setReadReceipts((prev) => ({
+          ...prev,
+          [data.conversation_id]: {
+            ...prev[data.conversation_id],
+            [data.user_id]: data.last_read_at,
+          },
+        }));
+      });
     });
 
     return () => {
       unsubNewMessage?.();
       unsubTyping?.();
+      unsubRead?.();
       releaseWSClient();
     };
   }, [user, refreshConversations, markRead]);
@@ -364,6 +397,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         refreshConversations,
         typingUsers,
         sendTyping,
+        readReceipts,
       }}
     >
       {children}

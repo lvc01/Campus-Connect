@@ -191,14 +191,14 @@ export function PostCard({ post, onPostDeleted }: { post: PostData; onPostDelete
   };
 
   return (
-    <article className="border-b border-border px-4 sm:px-6 py-4">
+    <article className="border-b border-border-quiet px-4 sm:px-6 py-4 transition-colors duration-200 hover:bg-surface/40">
       <div className="flex gap-3">
         <NextLink href={`/profile/${post.author_id}`}>
           <Avatar user={post.author} size={40} />
         </NextLink>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 min-w-0">
-            <NextLink href={`/profile/${post.author_id}`} className="text-body-sm font-semibold text-text-primary hover:underline truncate">
+            <NextLink href={`/profile/${post.author_id}`} className="font-display font-medium text-body-sm text-text-primary hover:underline truncate">
               {authorName}
             </NextLink>
             <RoleBadge role={post.author.role} hideStudent size={13} />
@@ -230,7 +230,7 @@ export function PostCard({ post, onPostDeleted }: { post: PostData; onPostDelete
           </div>
 
           {(editedContent ?? post.content) && (
-            <p className="mt-1 text-body text-text-primary whitespace-pre-wrap">
+            <p className="mt-1.5 text-body leading-relaxed text-text-primary whitespace-pre-wrap">
               <MentionHighlight text={editedContent ?? post.content ?? ""} />
             </p>
           )}
@@ -240,61 +240,65 @@ export function PostCard({ post, onPostDeleted }: { post: PostData; onPostDelete
           {/* Poll display */}
           {post.poll && <PollView postId={post.id} poll={post.poll} />}
 
-          <div className="mt-3 flex items-center gap-4 sm:gap-6 text-text-secondary">
+          <div className="mt-3 flex items-center gap-1.5 sm:gap-2 text-text-secondary">
             <button
               onClick={toggleComments}
               className={cn(
-                "flex items-center gap-1.5 text-body-sm rounded-full px-3 py-1.5 transition-all active:scale-95",
-                showComments ? "text-accent bg-accent/10" : "hover:text-accent hover:bg-accent/10",
+                "flex items-center gap-1.5 text-body-sm rounded-full px-2.5 py-1.5 transition-all active:scale-95",
+                showComments ? "text-accent bg-accent/10 ring-1 ring-accent/15" : "hover:text-accent hover:bg-accent/10",
               )}
             >
               <MessageCircle className="h-[18px] w-[18px]" />
-              <span className="text-[13px]">{formatCount(commentCount)}</span>
+              <span className="text-[13px] font-medium tabular-nums">{formatCount(commentCount)}</span>
             </button>
 
             <button
               onClick={handleRepost}
               disabled={repostLoading}
               className={cn(
-                "flex items-center gap-1.5 text-body-sm rounded-full px-3 py-1.5 transition-all active:scale-95",
+                "flex items-center gap-1.5 text-body-sm rounded-full px-2.5 py-1.5 transition-all active:scale-95",
                 reposted
-                  ? "text-repost bg-repost/10"
+                  ? "text-repost bg-repost/10 ring-1 ring-repost/15"
                   : "hover:text-repost hover:bg-repost/10",
                 repostLoading && "opacity-60 cursor-not-allowed",
               )}
             >
               <Repeat2 className={cn("h-[18px] w-[18px]", reposted && "fill-current")} />
-              <span className="text-[13px]">{formatCount(repostCount)}</span>
+              <span className="text-[13px] font-medium tabular-nums">{formatCount(repostCount)}</span>
             </button>
 
             <button
               onClick={handleLike}
               disabled={likeLoading}
               className={cn(
-                "flex items-center gap-1.5 text-body-sm rounded-full px-3 py-1.5 transition-all active:scale-95",
-                liked ? "text-like bg-like/10" : "hover:text-like hover:bg-like/10",
+                "flex items-center gap-1.5 text-body-sm rounded-full px-2.5 py-1.5 transition-all active:scale-95",
+                liked ? "text-like bg-like/10 ring-1 ring-like/15" : "hover:text-like hover:bg-like/10",
                 likeLoading && "opacity-60",
               )}
             >
               <Heart className={cn("h-[18px] w-[18px]", liked && "fill-current", likeAnimating && "like-pop")} />
-              <span className="text-[13px]">{formatCount(likeCount)}</span>
+              <span className="text-[13px] font-medium tabular-nums">{formatCount(likeCount)}</span>
             </button>
 
             <button
               onClick={handleSave}
               disabled={saveLoading}
               className={cn(
-                "flex items text-body-sm rounded-full px-3 py-1.5 transition-all active:scale-95",
-                saved ? "text-accent bg-accent/10" : "hover:text-accent hover:bg-accent/10",
+                "flex items-center gap-1.5 text-body-sm rounded-full px-2.5 py-1.5 transition-all active:scale-95",
+                saved ? "text-accent bg-accent/10 ring-1 ring-accent/15" : "hover:text-accent hover:bg-accent/10",
                 saveLoading && "opacity-60",
               )}
+              aria-label={saved ? "Remove bookmark" : "Bookmark post"}
+              title={saved ? "Remove bookmark" : "Bookmark post"}
             >
               <Bookmark className={cn("h-[18px] w-[18px]", saved && "fill-current")} />
             </button>
 
             <button
               onClick={handleCopyLink}
-              className="flex items text-body-sm rounded-full px-3 py-1.5 transition-all hover:text-accent hover:bg-accent/10 active:scale-95"
+              className="flex items-center text-body-sm rounded-full px-2.5 py-1.5 transition-all hover:text-accent hover:bg-accent/10 active:scale-95"
+              aria-label="Copy link to post"
+              title="Copy link"
             >
               <LinkIcon className="h-[18px] w-[18px]" />
             </button>
@@ -307,19 +311,24 @@ export function PostCard({ post, onPostDeleted }: { post: PostData; onPostDelete
           {user && (
             <div className="flex gap-2 mb-3">
               <Avatar user={user} size={28} />
-              <div className="flex-1 flex gap-2">
+              <div className="flex-1 flex gap-2 items-center">
                 <input
                   autoFocus
                   value={commentText}
                   onChange={(e) => setCommentText(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handlePostComment()}
                   placeholder="Write a comment..."
-                  className="flex-1 rounded-full border border-border bg-surface px-3 py-1.5 text-caption text-text-primary outline-none focus:border-accent transition-colors"
+                  className="flex-1 rounded-full border border-border bg-surface px-4 py-2 font-sans text-body-sm text-text-primary outline-none transition-colors placeholder:text-text-secondary focus:border-accent focus:bg-background"
                 />
                 <button
                   onClick={handlePostComment}
                   disabled={!commentText.trim() || postingComment}
-                  className="text-caption font-semibold text-accent hover:opacity-80 active:scale-95 transition-all disabled:opacity-40"
+                  className={cn(
+                    "text-caption font-semibold px-2 py-1 rounded-full transition-all active:scale-95 disabled:opacity-40",
+                    commentText.trim()
+                      ? "text-accent hover:bg-accent/10"
+                      : "text-text-secondary",
+                  )}
                 >
                   {postingComment ? "..." : "Post"}
                 </button>

@@ -1,14 +1,13 @@
 "use client";
 
 import React, { useState, useRef } from "react";
-import { User, Camera, Loader2, Plus, X } from "lucide-react";
+import { User, Camera, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/auth-context";
 import { apiClient } from "@/lib/api-client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/Avatar";
-import { Card } from "@/components/ui/card";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { toast } from "sonner";
 
@@ -38,7 +37,9 @@ const YEAR_OPTIONS = [
 const SOCIAL_PLATFORMS = [
   { key: "github", label: "GitHub", placeholder: "https://github.com/username" },
   { key: "linkedin", label: "LinkedIn", placeholder: "https://linkedin.com/in/username" },
-  { key: "twitter", label: "Twitter", placeholder: "https://twitter.com/username" },
+  { key: "twitter", label: "X", placeholder: "https://x.com/username" },
+  { key: "instagram", label: "Instagram", placeholder: "https://instagram.com/username" },
+  { key: "youtube", label: "YouTube", placeholder: "https://youtube.com/@username" },
 ];
 
 export default function ProfileSetupPage() {
@@ -147,16 +148,16 @@ export default function ProfileSetupPage() {
   };
 
   return (
-    <div className="flex-1 flex flex-col items-center px-4 py-12 bg-bg">
-      <div className="w-full max-w-lg">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-accent mb-6 shadow-lg shadow-accent/20">
-            <User className="h-7 w-7 text-text-inverse" strokeWidth={2.5} />
+    <div className="min-h-screen bg-background flex flex-col items-center px-4 py-12">
+      <div className="w-full max-w-lg reveal-up stagger-1">
+        <div className="text-center mb-10">
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-accent text-accent-foreground mb-6 shadow-md shadow-accent/20 reveal-up stagger-2">
+            <User className="h-7 w-7" strokeWidth={2} />
           </div>
-          <h1 className="text-3xl font-bold text-text-primary">
+          <h1 className="font-display text-h1 font-medium text-text-primary leading-tight reveal-up stagger-3">
             {user?.profile?.display_name ? "Edit your profile" : "Set up your profile"}
           </h1>
-          <p className="mt-2 text-sm text-text-secondary">
+          <p className="mt-2 font-sans text-body-sm text-text-secondary leading-relaxed reveal-up stagger-4">
             {user?.profile?.display_name
               ? "Update your details, photos, and links"
               : "Tell us about yourself to connect with your campus"}
@@ -164,14 +165,14 @@ export default function ProfileSetupPage() {
         </div>
 
         {errors.form && (
-          <div className="mb-6 p-4 rounded-xl bg-error/10 border border-error/20 text-sm font-semibold text-error text-center">
-            {errors.form}
+          <div className="mb-6 -ml-2 border-l-2 border-error bg-error/8 px-4 py-3 rounded-r-md reveal-up stagger-5">
+            <p className="font-sans text-body-sm font-medium text-error">{errors.form}</p>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Cover photo */}
-          <div className="overflow-hidden rounded-xl border bg-card">
+        <form onSubmit={handleSubmit} className="space-y-6 reveal-up stagger-5">
+          {/* Cover photo + Avatar */}
+          <div className="overflow-hidden rounded-xl border border-border-strong bg-surface">
             <div className="relative h-32 bg-gradient-to-br from-accent/30 via-accent/15 to-bg-elevated">
               {coverUrl && (
                 <img src={coverUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />
@@ -198,7 +199,6 @@ export default function ProfileSetupPage() {
               />
             </div>
 
-            {/* Avatar */}
             <div className="px-6 -mt-10 pb-6">
               <div className="relative inline-block">
                 <Avatar
@@ -228,7 +228,6 @@ export default function ProfileSetupPage() {
             </div>
           </div>
 
-          {/* Basic fields */}
           <Input
             label="Display name"
             id="displayName"
@@ -242,14 +241,14 @@ export default function ProfileSetupPage() {
           />
 
           <div className="flex flex-col gap-2">
-            <label htmlFor="faculty" className="text-sm font-semibold text-text-primary">
+            <label htmlFor="faculty" className="font-sans text-body-sm font-semibold text-text-primary">
               Faculty
             </label>
             <select
               id="faculty"
               value={faculty}
               onChange={(e) => setFaculty(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl bg-bg-surface border border-border focus:border-accent focus:ring-4 focus:ring-accent/20 text-text-primary font-medium text-sm transition-all duration-200 outline-none"
+              className="w-full px-3 py-2 rounded-xl bg-surface border border-border-strong focus:border-accent focus:ring-4 focus:ring-accent/20 text-text-primary font-medium text-sm transition-all duration-200 outline-none"
               required
             >
               {FACULTY_OPTIONS.map((opt) => (
@@ -258,18 +257,18 @@ export default function ProfileSetupPage() {
                 </option>
               ))}
             </select>
-            {errors.faculty && <p className="text-xs text-error font-semibold">{errors.faculty}</p>}
+            {errors.faculty && <p className="font-sans text-caption text-error font-medium">{errors.faculty}</p>}
           </div>
 
           <div className="flex flex-col gap-2">
-            <label htmlFor="yearOfStudy" className="text-sm font-semibold text-text-primary">
+            <label htmlFor="yearOfStudy" className="font-sans text-body-sm font-semibold text-text-primary">
               Year of study
             </label>
             <select
               id="yearOfStudy"
               value={yearOfStudy}
               onChange={(e) => setYearOfStudy(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl bg-bg-surface border border-border focus:border-accent focus:ring-4 focus:ring-accent/20 text-text-primary font-medium text-sm transition-all duration-200 outline-none"
+              className="w-full px-3 py-2 rounded-xl bg-surface border border-border-strong focus:border-accent focus:ring-4 focus:ring-accent/20 text-text-primary font-medium text-sm transition-all duration-200 outline-none"
               required
             >
               {YEAR_OPTIONS.map((opt) => (
@@ -278,15 +277,15 @@ export default function ProfileSetupPage() {
                 </option>
               ))}
             </select>
-            {errors.yearOfStudy && <p className="text-xs text-error font-semibold">{errors.yearOfStudy}</p>}
+            {errors.yearOfStudy && <p className="font-sans text-caption text-error font-medium">{errors.yearOfStudy}</p>}
           </div>
 
           <div className="flex flex-col gap-2">
             <div className="flex justify-between items-center">
-              <label htmlFor="bio" className="text-sm font-semibold text-text-primary">
-                Student Bio (Optional)
+              <label htmlFor="bio" className="font-sans text-body-sm font-semibold text-text-primary">
+                Student Bio <span className="font-normal text-text-tertiary">(Optional)</span>
               </label>
-              <span className="text-xs text-text-secondary font-semibold">
+              <span className="font-sans text-caption text-text-tertiary font-medium tabular-nums">
                 {bio.length} / 500
               </span>
             </div>
@@ -296,16 +295,18 @@ export default function ProfileSetupPage() {
               placeholder="Share something about yourself, your course, or your interests..."
               value={bio}
               onChange={(e) => setBio(e.target.value)}
-              className="w-full min-h-[120px] p-4 rounded-xl bg-bg-surface border border-border focus:border-accent focus:ring-4 focus:ring-accent/20 text-text-primary font-medium text-sm placeholder-text-muted transition-all duration-200 outline-none resize-none"
+              className="w-full min-h-[120px] p-4 rounded-xl bg-surface border border-border-strong focus:border-accent focus:ring-4 focus:ring-accent/20 text-text-primary font-sans text-body-sm leading-relaxed placeholder:text-text-tertiary transition-all duration-200 outline-none resize-none"
             />
           </div>
 
           {/* Social links */}
           <div className="space-y-3">
-            <label className="text-sm font-semibold text-text-primary">Social Links (Optional)</label>
+            <p className="font-sans text-body-sm font-semibold text-text-primary">
+              Social Links <span className="font-normal text-text-tertiary">(Optional)</span>
+            </p>
             {SOCIAL_PLATFORMS.map(({ key, label, placeholder }) => (
               <div key={key}>
-                <label htmlFor={`social-${key}`} className="text-xs font-semibold text-text-secondary mb-1 block">
+                <label htmlFor={`social-${key}`} className="font-sans text-caption font-medium text-text-secondary mb-1 block">
                   {label}
                 </label>
                 <input
@@ -314,13 +315,34 @@ export default function ProfileSetupPage() {
                   placeholder={placeholder}
                   value={socialLinks[key] || ""}
                   onChange={(e) => handleSocialLinkChange(key, e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-bg-surface border border-border focus:border-accent focus:ring-2 focus:ring-accent/20 text-text-primary text-sm transition-all outline-none"
+                  className="w-full px-3 py-2 rounded-lg bg-surface border border-border-strong focus:border-accent focus:ring-2 focus:ring-accent/20 text-text-primary font-sans text-body-sm transition-all outline-none"
                 />
               </div>
             ))}
+            <div>
+              <label htmlFor="social-whatsapp" className="font-sans text-caption font-medium text-text-secondary mb-1 block">
+                WhatsApp
+              </label>
+              <div className="flex items-center">
+                <span className="px-3 py-2 rounded-l-lg bg-surface border border-r-0 border-border-strong font-sans text-body-sm text-text-secondary font-medium">
+                  +91
+                </span>
+                <input
+                  id="social-whatsapp"
+                  type="tel"
+                  placeholder="9876543210"
+                  value={socialLinks.whatsapp?.replace(/^\+91/, "") || ""}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[^0-9]/g, "");
+                    handleSocialLinkChange("whatsapp", val ? `+91${val}` : "");
+                  }}
+                  className="flex-1 px-3 py-2 rounded-r-lg bg-surface border border-border-strong focus:border-accent focus:ring-2 focus:ring-accent/20 text-text-primary font-sans text-body-sm transition-all outline-none"
+                />
+              </div>
+            </div>
           </div>
 
-          <Button type="submit" isLoading={isLoading} fullWidth className="mt-2">
+          <Button type="submit" isLoading={isLoading} fullWidth className="mt-2 py-3">
             {user?.profile?.display_name ? "Save changes" : "Complete setup"}
           </Button>
         </form>

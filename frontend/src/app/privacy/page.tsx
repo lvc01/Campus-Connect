@@ -4,12 +4,12 @@ import { BackLink } from "@/components/layout/BackLink";
 
 export default function PrivacyPage() {
   return (
-    <div className="flex-1 min-h-screen bg-bg text-text-primary flex flex-col relative">
+    <div className="flex-1 min-h-screen bg-background text-text-primary flex flex-col relative">
       <div className="flex-1 w-full max-w-2xl mx-auto px-4 py-6 relative z-10">
         <BackLink href="/settings" label="Back to Settings" />
 
         <h1 className="text-2xl font-black text-text-primary mb-2">Privacy Policy</h1>
-        <p className="text-sm text-text-muted mb-8">Last updated: June 2026</p>
+        <p className="text-sm text-text-tertiary mb-8">Last updated: June 2026</p>
 
         <div className="space-y-6">
           <section>

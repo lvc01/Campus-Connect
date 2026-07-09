@@ -53,6 +53,9 @@ class User(Base, TimestampMixin, SoftDeleteMixin):
     email: Mapped[str] = mapped_column(
         String(255), unique=True, nullable=False, index=True
     )
+    username: Mapped[str | None] = mapped_column(
+        String(50), unique=True, nullable=True, index=True
+    )
     hashed_password: Mapped[str] = mapped_column(
         String(255), nullable=False
     )
@@ -107,6 +110,9 @@ class User(Base, TimestampMixin, SoftDeleteMixin):
     rsvps: Mapped[list["RSVP"]] = relationship(  # type: ignore[name-defined]
         back_populates="user", lazy="noload",
     )
+    event_saves: Mapped[list["EventSave"]] = relationship(  # type: ignore[name-defined]
+        back_populates="user", lazy="noload",
+    )
     poll_votes: Mapped[list["PollVote"]] = relationship(  # type: ignore[name-defined]
         back_populates="user", lazy="noload",
     )
@@ -133,6 +139,12 @@ class User(Base, TimestampMixin, SoftDeleteMixin):
     )
     conversation_memberships: Mapped[list["ConversationMember"]] = relationship(  # type: ignore[name-defined]
         back_populates="user", lazy="noload",
+    )
+    push_tokens: Mapped[list["UserPushToken"]] = relationship(
+        back_populates="user", lazy="noload",
+    )
+    settings: Mapped["UserSettings"] = relationship(
+        back_populates="user", uselist=False, lazy="selectin",
     )
 
     def __repr__(self) -> str:
@@ -172,6 +184,43 @@ class Profile(Base, TimestampMixin):
 
     def __repr__(self) -> str:
         return f"<Profile id={self.id} display_name={self.display_name}>"
+
+
+# ── User Settings ──────────────────────────────────────────────────────
+
+class UserSettings(Base, TimestampMixin):
+    """
+    Per-user notification and privacy preferences.
+    """
+
+    __tablename__ = "user_settings"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        primary_key=True, default=uuid.uuid4
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False,
+    )
+
+    # Notification preferences
+    push_notifications: Mapped[bool] = mapped_column(Boolean, default=True)
+    email_notifications: Mapped[bool] = mapped_column(Boolean, default=False)
+    like_notifications: Mapped[bool] = mapped_column(Boolean, default=True)
+    comment_notifications: Mapped[bool] = mapped_column(Boolean, default=True)
+    mention_notifications: Mapped[bool] = mapped_column(Boolean, default=True)
+    follow_notifications: Mapped[bool] = mapped_column(Boolean, default=True)
+    event_notifications: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    # Privacy preferences
+    public_profile: Mapped[bool] = mapped_column(Boolean, default=True)
+    show_online_status: Mapped[bool] = mapped_column(Boolean, default=True)
+    show_read_receipts: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    # ── Relationships ─────────────────────────────────────────────────
+    user: Mapped["User"] = relationship(back_populates="settings")
+
+    def __repr__(self) -> str:
+        return f"<UserSettings user={self.user_id}>"
 
 
 # ── OTP Code ──────────────────────────────────────────────────────────
@@ -241,3 +290,36 @@ class RefreshToken(Base, TimestampMixin):
 
     def __repr__(self) -> str:
         return f"<RefreshToken id={self.id} revoked={self.is_revoked}>"
+
+
+# ── Push Token ────────────────────────────────────────────────────────
+
+class UserPushToken(Base, TimestampMixin):
+    """
+    Expo push tokens for sending push notifications to mobile devices.
+
+    Each device registers its push token with the server, which is used
+    to send push notifications via Expo Push API.
+    """
+
+    __tablename__ = "user_push_tokens"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        primary_key=True, default=uuid.uuid4
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    token: Mapped[str] = mapped_column(
+        String(500), unique=True, nullable=False,
+    )
+    platform: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="ios",
+    )
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    # ── Relationships ─────────────────────────────────────────────────
+    user: Mapped["User"] = relationship(back_populates="push_tokens")
+
+    def __repr__(self) -> str:
+        return f"<UserPushToken id={self.id} platform={self.platform}>"

@@ -1,8 +1,13 @@
 import uuid
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from app.models.marketplace import ListingCategory, ListingCondition, ListingStatus
 from app.schemas.user import UserResponse
+
+
+class MediaItem(BaseModel):
+    url: str = Field(max_length=500)
+    media_type: str = Field(default="image", pattern="^(image|video)$")
 
 
 class ListingBase(BaseModel):
@@ -11,7 +16,21 @@ class ListingBase(BaseModel):
     price: float = Field(ge=0)
     category: ListingCategory
     condition: ListingCondition | None = None
-    image_urls: list[str] | None = Field(default=None)
+    location: str | None = Field(default=None, max_length=300)
+    # Bound the image list and each URL's length to prevent storage abuse.
+    image_urls: list[str] | None = Field(default=None, max_length=10)
+    # New: media items with type (image or video)
+    media_items: list[MediaItem] | None = Field(default=None, max_length=10)
+
+    @field_validator("image_urls")
+    @classmethod
+    def validate_image_urls(cls, v: list[str] | None) -> list[str] | None:
+        if v is None:
+            return v
+        for url in v:
+            if len(url) > 500:
+                raise ValueError("Each image URL must be 500 characters or fewer.")
+        return v
 
 
 class ListingCreate(ListingBase):
@@ -24,8 +43,19 @@ class ListingUpdate(BaseModel):
     price: float | None = Field(default=None, ge=0)
     category: ListingCategory | None = None
     condition: ListingCondition | None = None
+    location: str | None = Field(default=None, max_length=300)
     status: ListingStatus | None = None
-    image_urls: list[str] | None = None
+    image_urls: list[str] | None = Field(default=None, max_length=10)
+
+    @field_validator("image_urls")
+    @classmethod
+    def validate_image_urls(cls, v: list[str] | None) -> list[str] | None:
+        if v is None:
+            return v
+        for url in v:
+            if len(url) > 500:
+                raise ValueError("Each image URL must be 500 characters or fewer.")
+        return v
 
 
 class ListingImageResponse(BaseModel):
@@ -33,6 +63,7 @@ class ListingImageResponse(BaseModel):
 
     id: uuid.UUID
     url: str
+    media_type: str
     order: int
     created_at: datetime
 

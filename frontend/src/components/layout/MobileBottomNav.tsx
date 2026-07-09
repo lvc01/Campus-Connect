@@ -4,18 +4,18 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Plus } from "lucide-react";
 import { mobileNavItems } from "./nav-config";
-import { openCompose, openSearch } from "@/lib/compose-events";
+import { openCompose } from "@/lib/compose-events";
 import { cn } from "@/lib/utils";
 
 export function MobileBottomNav() {
   const pathname = usePathname();
-  const isActive = (to: string, isSearch?: boolean) =>
-    !isSearch && (to === "/" ? pathname === "/" : pathname.startsWith(to));
+  const isActive = (to: string) =>
+    to === "/" ? pathname === "/" : pathname.startsWith(to);
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-30 grid h-14 grid-cols-5 border-t border-border bg-background/90 backdrop-blur-md lg:hidden">
+    <nav className="fixed bottom-0 left-0 right-0 z-30 grid grid-cols-4 border-t border-border bg-background/90 backdrop-blur-md lg:hidden" style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
       {mobileNavItems.map((item) => {
-        const active = isActive(item.to, item.isSearch);
+        const active = isActive(item.to);
         const inner = (
           <span className="relative">
             <item.icon
@@ -28,18 +28,6 @@ export function MobileBottomNav() {
             ) : null}
           </span>
         );
-        if (item.isSearch) {
-          return (
-            <button
-              key={item.label}
-              onClick={openSearch}
-              className="flex items-center justify-center"
-              aria-label={item.label}
-            >
-              {inner}
-            </button>
-          );
-        }
         return (
           <Link
             key={item.label}

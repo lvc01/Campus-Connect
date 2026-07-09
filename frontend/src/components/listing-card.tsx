@@ -52,14 +52,14 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing, onSaveToggle 
     : "";
 
   return (
-    <Link href={`/marketplace/${listing.id}`} className="block bg-bg-surface border border-border rounded-xl overflow-hidden flex flex-col hover:scale-[1.02] transition-all duration-200 group">
-      <div className="relative h-44 bg-bg-surface overflow-hidden">
+    <Link href={`/marketplace/${listing.id}`} className="block bg-surface border border-border rounded-xl overflow-hidden flex flex-col hover:scale-[1.02] transition-all duration-200 group">
+      <div className="relative h-44 bg-surface overflow-hidden">
         {coverImage ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={coverImage} alt={listing.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <ImageOff className="h-12 w-12 text-text-muted" strokeWidth={1} />
+            <ImageOff className="h-12 w-12 text-text-tertiary" strokeWidth={1} />
           </div>
         )}
 
@@ -69,7 +69,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing, onSaveToggle 
           className={`absolute top-3 right-3 w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-200 backdrop-blur-sm ${
             listing.is_saved
               ? "bg-like/20 text-like"
-              : "bg-bg-surface/40 text-text-secondary hover:bg-bg-surface/60 hover:text-text-primary"
+              : "bg-surface/40 text-text-secondary hover:bg-surface/60 hover:text-text-primary"
           }`}
         >
           <Bookmark
@@ -100,7 +100,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing, onSaveToggle 
         </div>
 
         {listing.condition && (
-          <span className="text-[10px] font-semibold text-text-muted self-start px-2 py-0.5 rounded-full bg-bg-surface/50 border border-border/50">
+          <span className="text-[10px] font-semibold text-text-tertiary self-start px-2 py-0.5 rounded-full bg-surface/50 border border-border/50">
             {CONDITION_LABELS[listing.condition] || listing.condition}
           </span>
         )}
@@ -110,7 +110,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing, onSaveToggle 
         )}
 
         {listing.location && (
-          <div className="flex items-center gap-1 text-[11px] text-text-muted">
+          <div className="flex items-center gap-1 text-[11px] text-text-tertiary">
             <MapPin className="h-3 w-3 shrink-0" />
             <span className="truncate">{listing.location}</span>
           </div>
@@ -119,7 +119,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing, onSaveToggle 
         {stars && (
           <div className="flex items-center gap-1.5">
             <span className="text-amber-400 text-xs tracking-wider">{stars}</span>
-            <span className="text-[10px] text-text-muted">({listing.rating_count})</span>
+            <span className="text-[10px] text-text-tertiary">({listing.rating_count})</span>
           </div>
         )}
 
@@ -130,7 +130,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing, onSaveToggle 
             </div>
             <span className="text-[11px] font-semibold text-text-secondary truncate max-w-[100px]">{sellerName}</span>
           </div>
-          <span className="text-[10px] text-text-muted font-medium">{getRelativeTime(listing.created_at)}</span>
+          <span className="text-[10px] text-text-tertiary font-medium">{getRelativeTime(listing.created_at)}</span>
         </div>
       </div>
     </Link>

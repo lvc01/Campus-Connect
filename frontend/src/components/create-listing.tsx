@@ -5,8 +5,7 @@ import { apiClient } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getApiErrorMessage } from "@/lib/api-error";
-import { cn } from "@/lib/utils";
-import { Plus, X, Upload, Loader2 } from "lucide-react";
+import { X, Upload, Loader2 } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -41,7 +40,7 @@ const CONDITIONS = [
 interface CreateListingProps {
   isOpen: boolean;
   onClose: () => void;
-  onListingCreated: (listing: any) => void;
+  onListingCreated: (listing: Record<string, unknown>) => void;
   editListing?: ListingData;
 }
 
@@ -102,7 +101,7 @@ export const CreateListing: React.FC<CreateListingProps> = ({
     setIsLoading(true);
     setError("");
     try {
-      const payload: Record<string, any> = {
+      const payload: Record<string, unknown> = {
         title: title.trim(),
         description: description.trim() || null,
         price: parseFloat(price),
@@ -147,19 +146,19 @@ export const CreateListing: React.FC<CreateListingProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-fade-in">
-      <div className="w-full max-w-lg bg-bg-surface border border-border bg-bg-main shadow-2xl rounded-3xl p-6 sm:p-8 animate-pop-in relative max-h-[90vh] overflow-y-auto">
+      <div className="w-full max-w-lg bg-surface border border-border bg-background shadow-2xl rounded-3xl p-6 sm:p-8 animate-pop-in relative max-h-[90vh] overflow-y-auto">
         <button
           type="button"
           onClick={onClose}
-          className="absolute right-6 top-6 text-text-muted hover:text-text-main transition-colors"
+          className="absolute right-6 top-6 text-text-tertiary hover:text-text-primary transition-colors"
         >
           <X className="h-5 w-5" />
         </button>
 
-        <h2 className="text-2xl font-bold tracking-tight text-text-main">
+        <h2 className="text-2xl font-bold tracking-tight text-text-primary">
           {isEdit ? "Edit Listing" : "Create Listing"}
         </h2>
-        <p className="text-text-muted text-xs mt-1.5 font-medium">
+        <p className="text-text-tertiary text-xs mt-1.5 font-medium">
           {isEdit
             ? "Update your listing details"
             : "Sell textbooks, electronics, or offer services"}
@@ -184,7 +183,7 @@ export const CreateListing: React.FC<CreateListingProps> = ({
           <div className="flex flex-col gap-2">
             <label
               htmlFor="listing-description"
-              className="text-sm font-semibold text-text-main"
+              className="text-sm font-semibold text-text-primary"
             >
               Description
             </label>
@@ -193,7 +192,7 @@ export const CreateListing: React.FC<CreateListingProps> = ({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Describe your item — condition, reason for selling, etc."
-              className="w-full min-h-[100px] p-4 rounded-xl bg-bg-surface border border-border text-text-main font-medium text-sm placeholder:text-text-muted resize-none outline-none focus:border-accent/50 transition-all duration-200"
+              className="w-full min-h-[100px] p-4 rounded-xl bg-surface border border-border text-text-primary font-medium text-sm placeholder:text-text-tertiary resize-none outline-none focus:border-accent/50 transition-all duration-200"
             />
           </div>
 
@@ -211,7 +210,7 @@ export const CreateListing: React.FC<CreateListingProps> = ({
             />
 
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-semibold text-text-main">
+              <label className="text-sm font-semibold text-text-primary">
                 Category
               </label>
               <Select value={category} onValueChange={setCategory}>
@@ -230,7 +229,7 @@ export const CreateListing: React.FC<CreateListingProps> = ({
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-semibold text-text-main">
+            <label className="text-sm font-semibold text-text-primary">
               Condition
             </label>
             <Select value={condition} onValueChange={setCondition}>
@@ -256,7 +255,7 @@ export const CreateListing: React.FC<CreateListingProps> = ({
           />
 
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-semibold text-text-main">
+            <label className="text-sm font-semibold text-text-primary">
               Images ({imageUrls.length})
             </label>
 
@@ -272,7 +271,7 @@ export const CreateListing: React.FC<CreateListingProps> = ({
                     handleAddUrl();
                   }
                 }}
-                className="flex-1 px-3 py-1.5 rounded-xl bg-bg-surface border border-border text-text-main text-sm font-medium placeholder:text-text-muted outline-none focus:border-accent/50 transition-all"
+                className="flex-1 px-3 py-1.5 rounded-xl bg-surface border border-border text-text-primary text-sm font-medium placeholder:text-text-tertiary outline-none focus:border-accent/50 transition-all"
               />
               <Button
                 type="button"

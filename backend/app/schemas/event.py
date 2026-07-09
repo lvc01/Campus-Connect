@@ -46,6 +46,7 @@ class EventResponse(EventBase):
   
   # Requesting student's current RSVP state
   user_rsvp: RSVPStatus | None = None
+  is_saved: bool = False
 
 
 class RSVPRequest(BaseModel):

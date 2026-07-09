@@ -7,6 +7,7 @@ RSVP limits, attendance tracking, and link to the campus calendar.
 
 import enum
 import uuid
+from datetime import datetime
 
 from sqlalchemy import (
     Boolean,
@@ -57,10 +58,10 @@ class Event(Base, TimestampMixin, SoftDeleteMixin):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     title: Mapped[str] = mapped_column(String(300), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    start_time: Mapped[str] = mapped_column(
+    start_time: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False,
     )
-    end_time: Mapped[str | None] = mapped_column(
+    end_time: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True,
     )
     location: Mapped[str | None] = mapped_column(String(300), nullable=True)
@@ -82,6 +83,9 @@ class Event(Base, TimestampMixin, SoftDeleteMixin):
     organizer: Mapped["User"] = relationship(back_populates="organized_events")  # type: ignore[name-defined]
     club: Mapped["Club | None"] = relationship(back_populates="events")  # type: ignore[name-defined]
     rsvps: Mapped[list["RSVP"]] = relationship(
+        back_populates="event", lazy="noload", cascade="all, delete-orphan",
+    )
+    saves: Mapped[list["EventSave"]] = relationship(
         back_populates="event", lazy="noload", cascade="all, delete-orphan",
     )
 
@@ -122,3 +126,29 @@ class RSVP(Base, TimestampMixin):
 
     def __repr__(self) -> str:
         return f"<RSVP event={self.event_id} user={self.user_id} status={self.status.value}>"
+
+
+# ── Event Save / Bookmark ──────────────────────────────────────────────
+
+class EventSave(Base, TimestampMixin):
+    """A user saving/bookmarking an event for later."""
+
+    __tablename__ = "event_saves"
+    __table_args__ = (
+        UniqueConstraint("event_id", "user_id", name="uq_event_save_event_user"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    event_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("events.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+
+    # ── Relationships ─────────────────────────────────────────────────
+    event: Mapped["Event"] = relationship(back_populates="saves")
+    user: Mapped["User"] = relationship(back_populates="event_saves")  # type: ignore[name-defined]
+
+    def __repr__(self) -> str:
+        return f"<EventSave event={self.event_id} user={self.user_id}>"

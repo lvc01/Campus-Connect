@@ -67,6 +67,7 @@ export const ProfilePostsList: React.FC<ProfilePostsListProps> = ({ userId }) =>
 
   useEffect(() => {
     if (tab === "replies") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       void fetchComments(null, false);
     }
   }, [tab, fetchComments]);
@@ -90,7 +91,7 @@ export const ProfilePostsList: React.FC<ProfilePostsListProps> = ({ userId }) =>
             description="This user hasn't posted anything yet."
           />
         ) : (
-          <div className="divide-y divide-border">
+          <div className="divide-y divide-border-strong">
             {postsFeed.posts.map((post) => (
               <PostCard
                 key={post.id}
@@ -98,11 +99,13 @@ export const ProfilePostsList: React.FC<ProfilePostsListProps> = ({ userId }) =>
                 onPostDeleted={() => postsFeed.remove(post.id)}
               />
             ))}
+            {/* eslint-disable react-hooks/refs */}
             <div ref={postsFeed.loaderRef} className="flex justify-center py-6">
               {(postsFeed.isMoreLoading || (postsFeed.hasMore && !postsFeed.isMoreLoading)) && (
                 <Loader2 className="h-6 w-6 animate-spin text-accent" />
               )}
             </div>
+            {/* eslint-enable react-hooks/refs */}
           </div>
         )}
       </>
@@ -124,7 +127,7 @@ export const ProfilePostsList: React.FC<ProfilePostsListProps> = ({ userId }) =>
             description="This user hasn't replied to any posts yet."
           />
         ) : (
-          <div className="divide-y divide-border">
+          <div className="divide-y divide-border-strong">
             {comments.map((comment) => (
               <CommentCard key={comment.id} comment={comment} />
             ))}
@@ -133,7 +136,7 @@ export const ProfilePostsList: React.FC<ProfilePostsListProps> = ({ userId }) =>
                 <button
                   onClick={() => void fetchComments(commentsCursor, true)}
                   disabled={commentsLoading}
-                  className="text-sm font-semibold text-accent hover:text-accent/80 transition-colors"
+                  className="font-sans text-body-sm text-text-tertiary hover:text-text-secondary transition-colors disabled:opacity-50"
                 >
                   {commentsLoading ? "Loading..." : "Load more replies"}
                 </button>
@@ -165,34 +168,34 @@ const CommentCard: React.FC<{ comment: CommentData }> = ({ comment }) => {
   const handle = comment.author?.email?.split("@")[0] || "user";
 
   return (
-    <div className="bg-card border border-border rounded-xl p-4">
+    <div className="bg-surface border border-border-strong rounded-xl p-4 reveal-up">
       <div className="flex gap-3">
         <Link href={`/profile/${comment.author_id}`} className="shrink-0">
           <span
-            className="inline-flex shrink-0 items-center justify-center rounded-full bg-accent text-white font-semibold text-sm"
+            className="inline-flex shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground font-sans font-semibold text-sm"
             style={{ width: 36, height: 36 }}
           >
             {authorName.charAt(0).toUpperCase()}
           </span>
         </Link>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Link
               href={`/profile/${comment.author_id}`}
-              className="text-sm font-bold text-text-primary hover:underline truncate"
+              className="font-display text-body-sm font-medium text-text-primary hover:underline truncate"
             >
               {authorName}
             </Link>
-            <span className="text-xs text-text-secondary">@{handle}</span>
-            <span className="text-xs text-text-secondary">·</span>
-            <span className="text-xs text-text-secondary">
+            <span className="font-sans text-caption text-text-secondary">@{handle}</span>
+            <span className="font-sans text-caption text-text-secondary">·</span>
+            <span className="font-sans text-caption text-text-secondary">
               {getRelativeTimeShort(comment.created_at)}
             </span>
           </div>
-          <p className="mt-1 text-sm text-text-primary leading-relaxed">
+          <p className="mt-1 font-sans text-body-sm text-text-primary leading-relaxed">
             {comment.content}
           </p>
-          <div className="mt-2 flex items-center gap-4 text-xs text-text-secondary">
+          <div className="mt-2 flex items-center gap-4 font-sans text-caption text-text-secondary">
             <Link
               href={`/post/${comment.post_id}`}
               className="flex items-center gap-1 hover:text-accent transition-colors"
@@ -242,6 +245,7 @@ const MediaTab: React.FC<{ userId: string }> = ({ userId }) => {
   }, [userId]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void fetchMedia(null, false);
   }, [fetchMedia]);
 
@@ -279,7 +283,7 @@ const MediaTab: React.FC<{ userId: string }> = ({ userId }) => {
   return (
     <>
       <ProfileTabs active="media" onChange={() => {}} />
-      <div className="divide-y divide-border">
+      <div className="divide-y divide-border-strong">
         {posts.map((post) => (
           <PostCard
             key={post.id}
@@ -292,7 +296,7 @@ const MediaTab: React.FC<{ userId: string }> = ({ userId }) => {
             <button
               onClick={() => void fetchMedia(cursor, true)}
               disabled={loadingMore}
-              className="text-sm font-semibold text-accent hover:text-accent/80 transition-colors"
+              className="font-sans text-body-sm text-text-tertiary hover:text-text-secondary transition-colors"
             >
               {loadingMore ? "Loading..." : "Load more"}
             </button>
@@ -332,6 +336,7 @@ const LikesTab: React.FC<{ userId: string }> = ({ userId }) => {
   }, [userId]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void fetchLikes(null, false);
   }, [fetchLikes]);
 
@@ -369,7 +374,7 @@ const LikesTab: React.FC<{ userId: string }> = ({ userId }) => {
   return (
     <>
       <ProfileTabs active="likes" onChange={() => {}} />
-      <div className="divide-y divide-border">
+      <div className="divide-y divide-border-strong">
         {posts.map((post) => (
           <PostCard
             key={post.id}
@@ -382,7 +387,7 @@ const LikesTab: React.FC<{ userId: string }> = ({ userId }) => {
             <button
               onClick={() => void fetchLikes(cursor, true)}
               disabled={loadingMore}
-              className="text-sm font-semibold text-accent hover:text-accent/80 transition-colors"
+              className="font-sans text-body-sm text-text-tertiary hover:text-text-secondary transition-colors"
             >
               {loadingMore ? "Loading..." : "Load more"}
             </button>
@@ -422,6 +427,7 @@ const RepostsTab: React.FC<{ userId: string }> = ({ userId }) => {
   }, [userId]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void fetchReposts(null, false);
   }, [fetchReposts]);
 
@@ -459,7 +465,7 @@ const RepostsTab: React.FC<{ userId: string }> = ({ userId }) => {
   return (
     <>
       <ProfileTabs active="reposts" onChange={() => {}} />
-      <div className="divide-y divide-border">
+      <div className="divide-y divide-border-strong">
         {posts.map((post) => (
           <PostCard
             key={post.id}
@@ -472,7 +478,7 @@ const RepostsTab: React.FC<{ userId: string }> = ({ userId }) => {
             <button
               onClick={() => void fetchReposts(cursor, true)}
               disabled={loadingMore}
-              className="text-sm font-semibold text-accent hover:text-accent/80 transition-colors"
+              className="font-sans text-body-sm text-text-tertiary hover:text-text-secondary transition-colors"
             >
               {loadingMore ? "Loading..." : "Load more"}
             </button>

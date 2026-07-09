@@ -171,8 +171,8 @@ export function ComposeBox() {
   };
 
   return (
-    <div className="hidden lg:flex border-b border-border px-4 py-3">
-      <div className="flex gap-3">
+    <div className="hidden lg:block border-b border-border-quiet px-6 py-4">
+      <div className="flex gap-3.5">
         <Avatar user={user} size={40} />
         <div className="flex-1">
           <MentionTextarea
@@ -180,14 +180,14 @@ export function ComposeBox() {
             value={text}
             onChange={setText}
             onMentionsChange={setMentionIds}
-            placeholder={pollMode ? "Ask a question..." : "What is happening on campus?"}
+            placeholder={pollMode ? "Ask the campus a question..." : "What's happening on campus?"}
             rows={text ? Math.min(text.split("\n").length + 1, 6) : 2}
             className="transition-all duration-200"
           />
 
           {/* Media preview */}
           {mediaUrl && (
-            <div className="mt-2 rounded-xl overflow-hidden border border-border relative max-h-[200px]">
+            <div className="mt-2 rounded-xl overflow-hidden border border-border-quiet relative max-h-[200px]">
               <img src={mediaUrl} alt="" className="w-full max-h-[200px] object-cover" />
               <button
                 type="button"
@@ -205,7 +205,7 @@ export function ComposeBox() {
             <div className="mt-3 space-y-2">
               {pollOptions.map((opt, i) => (
                 <div key={i} className="flex items-center gap-2">
-                  <div className="flex-1 flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2">
+                  <div className="flex-1 flex items-center gap-2 rounded-lg border border-border-quiet bg-surface px-3 py-2">
                     <span className="text-caption text-text-secondary shrink-0">{i + 1}.</span>
                     <input
                       value={opt}
@@ -245,7 +245,7 @@ export function ComposeBox() {
           {/* Club targeting */}
           {myClubs.length > 0 && (
             <div className="mt-3 flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-2 rounded-lg border border-border bg-surface px-2.5 py-1.5">
+              <div className="flex items-center gap-2 rounded-lg border border-border-quiet bg-surface px-2.5 py-1.5">
                 <Users className="h-4 w-4 text-text-secondary" />
                 <select
                   value={clubId}
@@ -277,7 +277,7 @@ export function ComposeBox() {
             </div>
           )}
 
-          <div className="mt-3 flex items-center justify-between border-t border-border pt-3">
+          <div className="mt-3 flex items-center justify-between border-t border-border-quiet pt-3">
             <div className="flex items-center gap-1 text-accent relative">
               <input
                 ref={fileInputRef}
@@ -339,8 +339,8 @@ export function ComposeBox() {
             <div className="flex items-center gap-3">
               <span
                 className={cn(
-                  "text-caption transition-colors duration-200",
-                  over ? "text-error" : "text-text-secondary",
+                  "text-caption tabular-nums transition-colors duration-200",
+                  over ? "text-error font-medium" : "text-text-secondary",
                 )}
               >
                 {remaining}
@@ -348,7 +348,7 @@ export function ComposeBox() {
               <button
                 onClick={submit}
                 disabled={(!text.trim() && !mediaUrl && !(pollMode && pollOptions.some((o) => o.trim()))) || over || posting}
-                className="rounded-full bg-accent px-4 py-1.5 text-body-sm font-semibold text-accent-foreground transition-all duration-200 hover:opacity-90 hover:shadow-md hover:shadow-accent/20 active:scale-95 disabled:opacity-40 disabled:hover:shadow-none disabled:active:scale-100"
+                className="rounded-full bg-accent px-5 py-2 font-sans text-body-sm font-semibold text-accent-foreground transition-all duration-200 hover:bg-accent-press hover:shadow-md hover:shadow-accent/25 active:scale-95 disabled:opacity-40 disabled:hover:bg-accent disabled:hover:shadow-none disabled:active:scale-100"
               >
                 {posting ? "Posting..." : "Post"}
               </button>

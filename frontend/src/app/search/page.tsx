@@ -56,6 +56,7 @@ function SearchContent() {
 
   // Run search for the URL query on first load / back-forward navigation.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (query.length >= 2) doSearch(query);
   }, [query, doSearch]);
 
@@ -90,13 +91,13 @@ function SearchContent() {
 
         <div className="mb-4">
           <div className="relative">
-            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
+            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-tertiary" />
             <input
               type="text"
               value={searchInput}
               onChange={(e) => handleChange(e.target.value)}
               placeholder="Search users, posts, clubs..."
-              className="w-full pl-10 pr-4 py-3 bg-surface border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 text-text-primary placeholder:text-text-muted"
+              className="w-full pl-10 pr-4 py-3 bg-surface border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 text-text-primary placeholder:text-text-tertiary"
               autoFocus
             />
           </div>
@@ -116,7 +117,7 @@ function SearchContent() {
                 <Icon className="h-3.5 w-3.5" />
                 {label}
                 {key !== "top" && counts && counts[key as Exclude<TabKey, "top">] > 0 && (
-                  <span className="text-[10px] text-text-muted">{counts[key as Exclude<TabKey, "top">]}</span>
+                  <span className="text-[10px] text-text-tertiary">{counts[key as Exclude<TabKey, "top">]}</span>
                 )}
               </button>
             ))}
@@ -125,19 +126,19 @@ function SearchContent() {
 
         {loading && (
           <div className="flex items-center justify-center p-12">
-            <Loader2 className="h-8 w-8 animate-spin text-text-muted" />
+            <Loader2 className="h-8 w-8 animate-spin text-text-tertiary" />
           </div>
         )}
 
         {!loading && query.length < 2 && searchInput.trim().length < 2 && (
-          <div className="flex flex-col items-center justify-center p-12 text-text-muted">
+          <div className="flex flex-col items-center justify-center p-12 text-text-tertiary">
             <SearchIcon className="h-12 w-12 mb-4 opacity-50" />
             <p>Type at least 2 characters to search</p>
           </div>
         )}
 
         {!loading && results && total === 0 && (searchInput.trim().length >= 2 || query.length >= 2) && (
-          <div className="flex flex-col items-center justify-center p-12 text-text-muted">
+          <div className="flex flex-col items-center justify-center p-12 text-text-tertiary">
             <p>No results found.</p>
           </div>
         )}
@@ -151,7 +152,7 @@ function SearchContent() {
                     <Avatar user={u} size={36} />
                     <div className="min-w-0">
                       <p className="font-medium text-text-primary truncate">{u.display_name}</p>
-                      {u.faculty && <p className="text-xs text-text-muted">{u.faculty}</p>}
+                      {u.faculty && <p className="text-xs text-text-tertiary">{u.faculty}</p>}
                     </div>
                   </Link>
                 ))}
@@ -163,7 +164,7 @@ function SearchContent() {
                 {(tab === "top" ? results.posts.slice(0, 3) : results.posts).map((post) => (
                   <Link key={post.id} href={`/posts/${post.id}`} className="block bg-surface border border-border rounded-xl p-3 hover:border-accent/50 transition-colors">
                     <p className="text-sm text-text-primary line-clamp-2">{post.content}</p>
-                    <p className="text-xs text-text-muted mt-1">{post.author_name} &middot; {new Date(post.created_at).toLocaleDateString()}</p>
+                    <p className="text-xs text-text-tertiary mt-1">{post.author_name} &middot; {new Date(post.created_at).toLocaleDateString()}</p>
                   </Link>
                 ))}
               </Section>
@@ -178,7 +179,7 @@ function SearchContent() {
                     </div>
                     <div className="min-w-0">
                       <p className="font-medium text-text-primary truncate">{club.name}</p>
-                      <p className="text-xs text-text-muted">{club.member_count} members</p>
+                      <p className="text-xs text-text-tertiary">{club.member_count} members</p>
                     </div>
                   </Link>
                 ))}
@@ -190,7 +191,7 @@ function SearchContent() {
                 {(tab === "top" ? results.events.slice(0, 3) : results.events).map((event) => (
                   <Link key={event.id} href={`/events/${event.id}`} className="block bg-surface border border-border rounded-xl p-3 hover:border-accent/50 transition-colors">
                     <p className="font-medium text-text-primary">{event.title}</p>
-                    <p className="text-xs text-text-muted">
+                    <p className="text-xs text-text-tertiary">
                       {event.start_time && new Date(event.start_time).toLocaleDateString()}
                       {event.location && ` · ${event.location}`}
                     </p>
@@ -205,7 +206,7 @@ function SearchContent() {
                   <Link key={listing.id} href={`/marketplace/${listing.id}`} className="flex items-center justify-between bg-surface border border-border rounded-xl p-3 hover:border-accent/50 transition-colors">
                     <div>
                       <p className="font-medium text-text-primary">{listing.title}</p>
-                      <p className="text-xs text-text-muted">{listing.category}</p>
+                      <p className="text-xs text-text-tertiary">{listing.category}</p>
                     </div>
                     <span className="text-sm font-bold text-success">₹{listing.price.toLocaleString("en-IN")}</span>
                   </Link>
@@ -235,7 +236,7 @@ function Section({
   return (
     <section>
       <div className="flex items-center justify-between mb-3">
-        <h3 className="flex items-center gap-2 text-sm font-bold text-text-muted uppercase tracking-wider">
+        <h3 className="flex items-center gap-2 text-sm font-bold text-text-tertiary uppercase tracking-wider">
           <Icon className="h-4 w-4" /> {label}
         </h3>
         {showAll && (

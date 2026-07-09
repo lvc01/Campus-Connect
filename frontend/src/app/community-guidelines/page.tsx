@@ -40,7 +40,7 @@ export default function CommunityGuidelinesPage() {
         <BackLink href="/settings" label="Back to Settings" />
 
         <h1 className="text-2xl font-black text-text-primary mb-2">Community Guidelines</h1>
-        <p className="text-sm text-text-muted mb-8">Be kind, be respectful, be campus-spirited.</p>
+        <p className="text-sm text-text-tertiary mb-8">Be kind, be respectful, be campus-spirited.</p>
 
         <div className="space-y-6">
           {SECTIONS.map((s) => (

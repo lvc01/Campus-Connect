@@ -175,7 +175,7 @@ export const PostCard: React.FC<PostCardProps> = ({
 
   return (
     <article className="border-b border-border">
-      <div className="px-6 py-4 hover:bg-bg-elevated/40 transition-colors">
+      <div className="px-6 py-4 hover:bg-surface/40 transition-colors">
         <div className="flex gap-3">
           <Link href={profileHref} className="shrink-0 mt-0.5">
             <Avatar

@@ -1,7 +1,22 @@
 "use client";
 
+import { apiClient } from "./api-client";
+
 type MessageHandler<T = unknown> = (data: T) => void;
 type Payload = Record<string, unknown>;
+
+/**
+ * Fetch a short-lived WebSocket token from the backend.
+ * The token is scoped to WebSocket connections only and expires in 5 minutes.
+ */
+export async function fetchWsToken(): Promise<string | null> {
+  try {
+    const resp = await apiClient.post("/auth/ws-token");
+    return resp.data.access_token;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Lightweight reconnecting WebSocket client.
@@ -19,7 +34,7 @@ export class WSClient {
   constructor(token: string) {
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const host = process.env.NEXT_PUBLIC_WS_HOST || window.location.host;
-    this.url = `${protocol}//${host}/ws?token=${token}`;
+    this.url = `${protocol}//${host}/ws`;
     this.token = token;
   }
 
@@ -28,7 +43,7 @@ export class WSClient {
     this.shouldReconnect = true;
 
     try {
-      this.ws = new WebSocket(this.url);
+      this.ws = new WebSocket(this.url, [this.token]);
     } catch {
       this.scheduleReconnect();
       return;

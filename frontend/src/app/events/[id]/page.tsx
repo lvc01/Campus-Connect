@@ -90,6 +90,7 @@ export default function EventDetailPage() {
   }, [params.id, user]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchEvent();
   }, [fetchEvent]);
 
@@ -187,70 +188,70 @@ export default function EventDetailPage() {
   const organizerName = event.organizer?.profile?.display_name || event.organizer?.email?.split("@")[0] || "Unknown";
 
   return (
-    <div className="flex-1 min-h-screen bg-bg text-text-primary flex flex-col relative">
+    <div className="flex-1 min-h-screen bg-background text-text-primary flex flex-col relative">
       <div className="absolute top-[-30%] left-[-10%] w-[800px] h-[800px] rounded-full bg-accent/5 blur-[160px] pointer-events-none" />
 
       <div className="flex-1 w-full max-w-5xl mx-auto px-6 py-8 relative z-10">
         <BackLink href="/events" label="Back to Events" />
 
         {event.cover_image_url ? (
-          <div className="relative h-64 rounded-2xl overflow-hidden mb-6">
+          <div className="relative h-64 rounded-2xl overflow-hidden mb-6 reveal-up stagger-1">
             <img src={event.cover_image_url} alt={event.title} className="w-full h-full object-cover" />
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
             <div className="absolute bottom-6 left-6 right-6">
               {event.club && (
-                <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-white/20 backdrop-blur-sm text-white border border-white/10 mb-2 inline-block">
+                <span className="font-sans text-overline font-semibold px-2.5 py-1 rounded-full bg-white/20 backdrop-blur-sm text-white border border-white/10 mb-2 inline-block">
                   {event.club.name}
                 </span>
               )}
-              <h1 className="text-3xl font-black text-white tracking-tight">{event.title}</h1>
+              <h1 className="font-display text-display font-medium text-white leading-tight">{event.title}</h1>
             </div>
           </div>
         ) : (
-          <div className="mb-6">
+          <div className="mb-6 reveal-up stagger-1">
             <div className="flex items-center gap-3 mb-3">
               {event.club && (
-                <span className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-accent/10 text-accent">
+                <span className="font-sans text-overline font-semibold px-2.5 py-1 rounded-lg bg-accent/10 text-accent">
                   {event.club.name}
                 </span>
               )}
               <span className={cn(
-                "text-[10px] font-bold px-2 py-0.5 rounded-full capitalize",
+                "font-sans text-overline font-semibold px-2 py-0.5 rounded-full capitalize",
                 event.status === "upcoming" ? "bg-emerald-500/10 text-emerald-400" :
                 event.status === "ongoing" ? "bg-accent/10 text-accent" :
                 event.status === "cancelled" ? "bg-like/10 text-like" :
-                "bg-text-muted/10 text-text-muted"
+                "bg-text-tertiary/10 text-text-tertiary"
               )}>
                 {event.status}
               </span>
             </div>
-            <h1 className="text-3xl font-black tracking-tight">{event.title}</h1>
+            <h1 className="font-display text-display font-medium text-text-primary leading-tight">{event.title}</h1>
           </div>
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-5">
+          <div className="lg:col-span-2 space-y-5 reveal-up stagger-2">
             {event.description && (
-              <div className="bg-bg-surface border border-border rounded-2xl p-6">
-                <h2 className="text-sm font-bold text-text-primary mb-3">About This Event</h2>
-                <p className="text-sm text-text-secondary leading-relaxed whitespace-pre-wrap">{event.description}</p>
+              <div className="bg-surface border border-border-strong rounded-2xl p-6">
+                <h2 className="font-display text-body font-medium text-text-primary mb-3">About This Event</h2>
+                <p className="font-sans text-body-sm text-text-secondary leading-relaxed whitespace-pre-wrap">{event.description}</p>
               </div>
             )}
 
-            <div className="bg-bg-surface border border-border rounded-2xl p-6">
-              <h2 className="text-sm font-bold text-text-primary mb-4">Details</h2>
+            <div className="bg-surface border border-border-strong rounded-2xl p-6">
+              <h2 className="font-display text-body font-medium text-text-primary mb-4">Details</h2>
               <div className="space-y-4">
                 <div className="flex items-start gap-3">
                   <Calendar className="h-4 w-4 text-accent mt-0.5 shrink-0" />
                   <div>
-                    <p className="text-sm font-semibold text-text-primary">{formatDateTime(event.start_time)}</p>
-                    <p className="text-xs text-text-muted mt-0.5">{formatTimeRange(event.start_time, event.end_time)}</p>
+                    <p className="font-sans text-body-sm font-semibold text-text-primary">{formatDateTime(event.start_time)}</p>
+                    <p className="font-sans text-caption text-text-tertiary mt-0.5">{formatTimeRange(event.start_time, event.end_time)}</p>
                   </div>
                 </div>
                 {event.location && (
                   <div className="flex items-start gap-3">
                     <MapPin className="h-4 w-4 text-accent mt-0.5 shrink-0" />
-                    <p className="text-sm font-semibold text-text-primary">{event.location}</p>
+                    <p className="font-sans text-body-sm font-semibold text-text-primary">{event.location}</p>
                   </div>
                 )}
                 <div className="flex items-start gap-3">
@@ -258,11 +259,11 @@ export default function EventDetailPage() {
                   <div>
                     <button
                       onClick={openAttendees}
-                      className="text-sm font-semibold text-text-primary hover:text-accent transition-colors text-left"
+                      className="font-sans text-body-sm font-semibold text-text-primary hover:text-accent transition-colors text-left"
                     >
                       {event.rsvp_count} attending
                       {event.rsvp_limit ? ` of ${event.rsvp_limit} capacity` : ""}
-                      <span className="ml-1.5 text-xs font-medium text-accent">· View all</span>
+                      <span className="ml-1.5 font-sans text-caption font-medium text-accent">· View all</span>
                     </button>
                     {capacityPercent !== null && (
                       <div className="mt-2 w-48 h-1.5 rounded-full bg-surface overflow-hidden">
@@ -281,9 +282,9 @@ export default function EventDetailPage() {
             </div>
           </div>
 
-          <div className="space-y-5">
-            <div className="bg-bg-surface border border-border rounded-2xl p-6">
-              <h3 className="text-xs font-bold text-text-muted uppercase tracking-wider mb-4">RSVP</h3>
+          <div className="space-y-5 reveal-up stagger-3">
+            <div className="bg-surface border border-border-strong rounded-2xl p-6">
+              <h3 className="font-sans text-overline font-semibold text-text-tertiary uppercase tracking-[0.12em] mb-4">RSVP</h3>
               <div className="flex flex-col gap-2">
                 {RSVP_OPTIONS.map((opt) => (
                   <button
@@ -291,10 +292,10 @@ export default function EventDetailPage() {
                     onClick={() => handleRsvp(opt.value)}
                     disabled={rsvpLoading || event.status === "past"}
                     className={cn(
-                      "flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold border transition-all active:scale-95",
+                      "flex items-center justify-center gap-2 py-2.5 rounded-xl font-sans text-body-sm font-semibold border transition-all active:scale-95",
                       event.user_rsvp === opt.value
                         ? opt.activeColor
-                        : "border-border text-text-secondary hover:bg-surface",
+                        : "border-border-strong text-text-secondary hover:bg-surface",
                       (rsvpLoading || event.status === "past") && "opacity-50"
                     )}
                   >
@@ -305,7 +306,7 @@ export default function EventDetailPage() {
                     )}
                     {opt.label}
                     {event.user_rsvp === opt.value && (
-                      <span className="text-[10px]">(selected)</span>
+                      <span className="font-sans text-overline">(selected)</span>
                     )}
                   </button>
                 ))}
@@ -313,10 +314,10 @@ export default function EventDetailPage() {
                   onClick={handleSave}
                   disabled={saving}
                   className={cn(
-                    "mt-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold border transition-all active:scale-95",
+                    "mt-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-sans text-body-sm font-semibold border transition-all active:scale-95",
                     event.is_saved
                       ? "bg-accent/10 text-accent border-accent/30"
-                      : "border-border text-text-secondary hover:bg-surface",
+                      : "border-border-strong text-text-secondary hover:bg-surface",
                   )}
                 >
                   <Bookmark className={cn("h-4 w-4", event.is_saved && "fill-current")} />
@@ -325,28 +326,28 @@ export default function EventDetailPage() {
               </div>
             </div>
 
-            <div className="bg-bg-surface border border-border rounded-2xl p-5">
-              <h3 className="text-xs font-bold text-text-muted uppercase tracking-wider mb-4">Organizer</h3>
+            <div className="bg-surface border border-border-strong rounded-2xl p-5">
+              <h3 className="font-sans text-overline font-semibold text-text-tertiary uppercase tracking-[0.12em] mb-4">Organizer</h3>
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center shrink-0">
-                  <span className="text-sm font-bold text-text-inverse select-none">
+                  <span className="font-sans text-body-sm font-semibold text-accent-foreground select-none">
                     {getInitials(organizerName)}
                   </span>
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-text-primary">{organizerName}</p>
-                  <p className="text-[11px] text-text-secondary">Event Organizer</p>
+                  <p className="font-sans text-body-sm font-semibold text-text-primary">{organizerName}</p>
+                  <p className="font-sans text-caption text-text-secondary">Event Organizer</p>
                 </div>
               </div>
             </div>
 
             {isOrganizer && (
-              <div className="bg-bg-surface border border-border rounded-2xl p-5">
-                <h3 className="text-xs font-bold text-text-muted uppercase tracking-wider mb-3">Manage</h3>
+              <div className="bg-surface border border-border-strong rounded-2xl p-5">
+                <h3 className="font-sans text-overline font-semibold text-text-tertiary uppercase tracking-[0.12em] mb-3">Manage</h3>
                 <div className="space-y-2">
                   <button
                     onClick={() => setShowDeleteConfirm(true)}
-                    className="w-full flex items-center justify-center gap-2 py-2.5 text-sm font-bold rounded-xl bg-like/10 text-like border border-like/20 hover:bg-like/20 transition-all"
+                    className="w-full flex items-center justify-center gap-2 py-2.5 font-sans text-body-sm font-semibold rounded-xl bg-like/10 text-like border border-like/20 hover:bg-like/20 transition-all"
                   >
                     <Trash2 className="h-4 w-4" />
                     Delete Event
@@ -364,16 +365,16 @@ export default function EventDetailPage() {
           onClick={() => setShowAttendees(false)}
         >
           <div
-            className="w-full max-w-md bg-bg-surface border border-border rounded-2xl overflow-hidden animate-pop-in"
+            className="w-full max-w-md bg-surface border border-border-strong rounded-2xl overflow-hidden animate-pop-in"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b border-border px-5 py-4">
-              <h3 className="text-base font-bold text-text-primary">Attendees</h3>
-              <button onClick={() => setShowAttendees(false)} aria-label="Close" className="text-text-secondary hover:text-text-primary">
+            <div className="flex items-center justify-between border-b border-border-strong px-5 py-4">
+              <h3 className="font-display text-body font-medium text-text-primary">Attendees</h3>
+              <button onClick={() => setShowAttendees(false)} aria-label="Close" className="text-text-tertiary hover:text-text-primary">
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="flex border-b border-border">
+            <div className="flex border-b border-border-strong">
               {([
                 { key: "going", label: "Going" },
                 { key: "maybe", label: "Maybe" },
@@ -383,7 +384,7 @@ export default function EventDetailPage() {
                   key={key}
                   onClick={() => setAttendeesTab(key)}
                   className={cn(
-                    "flex-1 py-2.5 text-xs font-bold transition-colors",
+                    "flex-1 py-2.5 font-sans text-overline font-semibold transition-colors",
                     attendeesTab === key ? "text-accent border-b-2 border-accent" : "text-text-secondary hover:text-text-primary",
                   )}
                 >
@@ -395,7 +396,7 @@ export default function EventDetailPage() {
             <div className="max-h-80 overflow-y-auto p-3">
               {attendeesLoading ? (
                 <div className="flex justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin text-text-muted" />
+                  <Loader2 className="h-6 w-6 animate-spin text-text-tertiary" />
                 </div>
               ) : attendees && attendees[attendeesTab].length > 0 ? (
                 <div className="space-y-1">
@@ -406,12 +407,12 @@ export default function EventDetailPage() {
                       className="flex items-center gap-3 rounded-xl px-2 py-2 hover:bg-surface transition-colors"
                     >
                       <Avatar user={{ id: a.id, display_name: a.display_name, email: a.email, profile: { avatar_url: a.avatar_url } }} size={36} />
-                      <span className="text-sm font-medium text-text-primary truncate">{a.display_name || a.email.split("@")[0]}</span>
+                      <span className="font-sans text-body-sm font-medium text-text-primary truncate">{a.display_name || a.email.split("@")[0]}</span>
                     </Link>
                   ))}
                 </div>
               ) : (
-                <p className="py-8 text-center text-sm text-text-muted">No one here yet.</p>
+                <p className="py-8 text-center font-sans text-body-sm text-text-tertiary">No one here yet.</p>
               )}
             </div>
           </div>
@@ -420,9 +421,9 @@ export default function EventDetailPage() {
 
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-fade-in">
-          <div className="w-full max-w-sm bg-bg-surface border border-border rounded-3xl p-6 animate-pop-in text-center">
-            <h3 className="text-lg font-bold text-text-primary mb-2">Delete Event?</h3>
-            <p className="text-xs text-text-secondary mb-6">This action cannot be undone.</p>
+          <div className="w-full max-w-sm bg-surface border border-border-strong rounded-3xl p-6 animate-pop-in text-center">
+            <h3 className="font-display text-h2 font-medium text-text-primary mb-2">Delete Event?</h3>
+            <p className="font-sans text-caption text-text-secondary mb-6">This action cannot be undone.</p>
             <div className="flex gap-3 justify-center">
               <Button variant="secondary" onClick={() => setShowDeleteConfirm(false)}>Cancel</Button>
               <Button onClick={handleDelete} isLoading={isDeleting}>Delete</Button>

@@ -37,9 +37,24 @@ class MarketplaceService:
         db.add(listing)
         await db.flush()
 
-        if data.image_urls:
+        # Handle new media_items with types (image or video)
+        if data.media_items:
+            for idx, item in enumerate(data.media_items):
+                db.add(ListingImage(
+                    listing_id=listing.id,
+                    url=item.url.strip(),
+                    media_type=item.media_type,
+                    order=idx,
+                ))
+        elif data.image_urls:
+            # Backward compatibility: treat image_urls as images
             for idx, url in enumerate(data.image_urls):
-                db.add(ListingImage(listing_id=listing.id, url=url.strip(), order=idx))
+                db.add(ListingImage(
+                    listing_id=listing.id,
+                    url=url.strip(),
+                    media_type="image",
+                    order=idx,
+                ))
 
         await db.flush()
 
@@ -106,7 +121,17 @@ class MarketplaceService:
             "oldest": MarketplaceListing.created_at.asc(),
             "price_low": MarketplaceListing.price.asc(),
             "price_high": MarketplaceListing.price.desc(),
+            "views_desc": MarketplaceListing.view_count.desc(),
+            "rating_desc": func.coalesce(
+                func.avg(SellerRating.rating), 0
+            ).desc(),
         }
+        
+        # For rating sort, join with ratings table
+        if sort == "rating_desc":
+            query = query.outerjoin(SellerRating, MarketplaceListing.id == SellerRating.listing_id)
+            query = query.group_by(MarketplaceListing.id)
+        
         query = query.order_by(sort_map.get(sort, MarketplaceListing.created_at.desc()))
 
         result = await db.execute(query.limit(limit + 1))
@@ -202,14 +227,32 @@ class MarketplaceService:
             listing.condition = data.condition
         if data.status is not None:
             listing.status = data.status
-        if data.image_urls is not None:
+        if data.media_items is not None:
+            existing_images = await db.execute(
+                select(ListingImage).where(ListingImage.listing_id == listing_id)
+            )
+            for img in existing_images.scalars().all():
+                await db.delete(img)
+            for idx, item in enumerate(data.media_items):
+                db.add(ListingImage(
+                    listing_id=listing_id,
+                    url=item.url.strip(),
+                    media_type=item.media_type,
+                    order=idx,
+                ))
+        elif data.image_urls is not None:
             existing_images = await db.execute(
                 select(ListingImage).where(ListingImage.listing_id == listing_id)
             )
             for img in existing_images.scalars().all():
                 await db.delete(img)
             for idx, url in enumerate(data.image_urls):
-                db.add(ListingImage(listing_id=listing_id, url=url.strip(), order=idx))
+                db.add(ListingImage(
+                    listing_id=listing_id,
+                    url=url.strip(),
+                    media_type="image",
+                    order=idx,
+                ))
 
         await db.flush()
         await db.refresh(listing)

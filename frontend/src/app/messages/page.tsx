@@ -3,9 +3,9 @@
 import { useState, useRef, useCallback, useEffect, useMemo, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import {
-  Pencil, Search, UserPlus, X, Paperclip, Smile, MoreVertical,
-  PencilIcon, Trash2, VolumeX, Volume2, Download, FileText, Image as ImageIcon,
-  ArrowLeft, MessageSquareOff, Reply, Flag,
+  Pencil, Search, UserPlus, X, Paperclip, Smile,
+  PencilIcon, Trash2, VolumeX, Volume2, FileText,
+  ArrowLeft, Reply, Flag,
 } from "lucide-react";
 import { LayoutShell } from "@/components/layout/LayoutShell";
 import { Avatar } from "@/components/Avatar";
@@ -14,7 +14,6 @@ import { useAuth } from "@/context/auth-context";
 import { useChat, Conversation, MessageData } from "@/context/chat-context";
 import { apiClient } from "@/lib/api-client";
 import { cn, getRelativeTimeShort } from "@/lib/utils";
-import data from "@emoji-mart/data";
 
 const QUICK_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🔥", "👏", "🎉"];
 
@@ -38,7 +37,7 @@ function MessageBubble({
 }: {
   msg: MessageData;
   isMine: boolean;
-  user: any;
+  user: { id: string; profile?: { display_name?: string; avatar_url?: string | null } | null; email?: string };
   onEdit: (msg: MessageData) => void;
   onDelete: (msgId: string) => void;
   onReact: (msgId: string, emoji: string) => void;
@@ -249,7 +248,7 @@ function MessagesPageInner() {
   const [messageInput, setMessageInput] = useState("");
   const [showNewConv, setShowNewConv] = useState(false);
   const [userSearch, setUserSearch] = useState("");
-  const [userResults, setUserResults] = useState<any[]>([]);
+  const [userResults, setUserResults] = useState<{ id: string; profile?: { display_name?: string; avatar_url?: string | null } | null; email?: string }[]>([]);
   const [searching, setSearching] = useState(false);
   const [editingMsg, setEditingMsg] = useState<MessageData | null>(null);
   const [replyingTo, setReplyingTo] = useState<MessageData | null>(null);
@@ -290,6 +289,48 @@ function MessagesPageInner() {
   const emojiPickerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  const handleTyping = useCallback(() => {
+    if (!activeConvId) return;
+    if (!isTypingRef.current) {
+      isTypingRef.current = true;
+      sendTyping(activeConvId, true);
+    }
+    if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+    typingTimerRef.current = setTimeout(() => {
+      isTypingRef.current = false;
+      sendTyping(activeConvId, false);
+    }, 3000);
+  }, [activeConvId, sendTyping]);
+
+  // Mark read when switching conversations
+  useEffect(() => {
+    if (activeConvId) {
+      const a = conversations.find((c) => c.id === activeConvId);
+      if (a && a.unread_count > 0) {
+        markRead(activeConvId);
+      }
+    }
+  }, [activeConvId]);
+
+  // Auto-scroll to bottom on new messages
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages.length]);
+
+  // Close emoji picker on outside click
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(e.target as Node)) {
+        setShowEmojiPicker(false);
+        setReactingToMsgId(null);
+      }
+    };
+    if (showEmojiPicker) document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showEmojiPicker]);
+
   if (!user) return null;
 
   const active = conversations.find((c) => c.id === activeConvId);
@@ -306,27 +347,13 @@ function MessagesPageInner() {
       })
     : conversations;
 
-  // Mark read when switching conversations
-  useEffect(() => {
-    if (activeConvId && active && active.unread_count > 0) {
-      markRead(activeConvId);
-    }
-  }, [activeConvId]);
-
-  // Auto-scroll to bottom on new messages
-  useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [messages.length]);
-
   const handleSearchUsers = async (q: string) => {
     setUserSearch(q);
     if (q.length < 2) { setUserResults([]); return; }
     setSearching(true);
     try {
       const res = await apiClient.get(`/search`, { params: { q } });
-      setUserResults((res.data?.users || []).filter((u: any) => u.id !== user.id));
+      setUserResults((res.data?.users || []).filter((u: { id: string }) => u.id !== user.id));
     } catch { setUserResults([]); } finally { setSearching(false); }
   };
 
@@ -334,19 +361,6 @@ function MessagesPageInner() {
     const convId = await createDM(userId);
     if (convId) { setActiveConvId(convId); setShowNewConv(false); setUserSearch(""); setUserResults([]); }
   };
-
-  const handleTyping = useCallback(() => {
-    if (!activeConvId) return;
-    if (!isTypingRef.current) {
-      isTypingRef.current = true;
-      sendTyping(activeConvId, true);
-    }
-    if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
-    typingTimerRef.current = setTimeout(() => {
-      isTypingRef.current = false;
-      sendTyping(activeConvId, false);
-    }, 3000);
-  }, [activeConvId, sendTyping]);
 
   const handleSend = () => {
     if (!messageInput.trim()) return;
@@ -401,18 +415,6 @@ function MessagesPageInner() {
     setReactingToMsgId(msgId);
     setShowEmojiPicker(true);
   };
-
-  // Close emoji picker on outside click
-  useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      if (emojiPickerRef.current && !emojiPickerRef.current.contains(e.target as Node)) {
-        setShowEmojiPicker(false);
-        setReactingToMsgId(null);
-      }
-    };
-    if (showEmojiPicker) document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [showEmojiPicker]);
 
   return (
     <LayoutShell hideRightRail>
@@ -689,12 +691,12 @@ function MessagesPageInner() {
               <div className="max-h-60 overflow-y-auto">
                 {searching && <div className="flex justify-center py-4"><div className="h-5 w-5 border-2 border-accent border-t-transparent rounded-full animate-spin" /></div>}
                 {!searching && userResults.length === 0 && userSearch.length >= 2 && <p className="text-center text-caption text-text-secondary py-4">No users found</p>}
-                {userResults.map((u: any) => (
+                {userResults.map((u: { id: string; profile?: { display_name?: string; avatar_url?: string | null } | null; email?: string }) => (
                   <button key={u.id} onClick={() => handleStartDM(u.id)} className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-surface transition-colors text-left">
                     <Avatar user={u} size={36} />
                     <div className="min-w-0">
-                      <p className="text-body-sm font-semibold text-text-primary truncate">{u.profile?.display_name || u.email.split("@")[0]}</p>
-                      <p className="text-caption text-text-secondary truncate">{u.email}</p>
+                      <p className="text-body-sm font-semibold text-text-primary truncate">{u.profile?.display_name || u.email?.split("@")[0] || "User"}</p>
+                      <p className="text-caption text-text-secondary truncate">{u.email || ""}</p>
                     </div>
                   </button>
                 ))}

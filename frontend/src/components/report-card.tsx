@@ -6,29 +6,7 @@ import { apiClient } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { getInitials, getRelativeTime } from "@/lib/utils";
 import { getApiErrorMessage } from "@/lib/api-error";
-import type { ContentPreview } from "@/types/moderation";
-
-export interface ReportData {
-  id: string;
-  reporter: { id: string; email: string; profile: { display_name: string } | null };
-  reviewer: { id: string; email: string; profile: { display_name: string } | null } | null;
-  assignee: { id: string; email: string; profile: { display_name: string } | null } | null;
-  target_type: string;
-  target_id: string;
-  category: string;
-  description: string | null;
-  status: string;
-  priority: string;
-  resolution_note: string | null;
-  internal_notes: string | null;
-  resolved_at: string | null;
-  is_hidden: boolean;
-  sla_deadline: string | null;
-  assigned_to: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
+import type { ContentPreview, ReportData } from "@/types/moderation";
 const STATUS_COLORS: Record<string, string> = {
   pending: "bg-amber-500/10 text-amber-400 border-amber-500/20",
   reviewing: "bg-sky-500/10 text-sky-400 border-sky-500/20",
@@ -270,7 +248,7 @@ export function ReportCard({ report, onUpdated, selected, onToggleSelect, showCh
   };
 
   return (
-    <div className={`bg-bg-surface border rounded-xl p-5 flex flex-col gap-4 transition-colors ${selected ? "border-accent/50 bg-accent/5" : "border-border"}`}>
+    <div className={`bg-surface border rounded-xl p-5 flex flex-col gap-4 transition-colors ${selected ? "border-accent/50 bg-accent/5" : "border-border"}`}>
       {/* Header: checkbox + reporter + status */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-3 min-w-0">
@@ -287,11 +265,11 @@ export function ReportCard({ report, onUpdated, selected, onToggleSelect, showCh
           </div>
           <div className="min-w-0">
             <p className="text-sm font-bold text-text-primary truncate">{report.reporter?.profile?.display_name || "Unknown"}</p>
-            <p className="text-[11px] text-text-muted">{report.reporter?.email}</p>
+            <p className="text-[11px] text-text-tertiary">{report.reporter?.email}</p>
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <span className={`text-[10px] font-bold px-2 py-1 rounded-full border ${STATUS_COLORS[report.status] || "bg-bg-surface text-text-muted"}`}>
+          <span className={`text-[10px] font-bold px-2 py-1 rounded-full border ${STATUS_COLORS[report.status] || "bg-surface text-text-tertiary"}`}>
             {report.status}
           </span>
           <span className={`text-[10px] font-bold px-2 py-1 rounded-full border ${
@@ -302,7 +280,7 @@ export function ReportCard({ report, onUpdated, selected, onToggleSelect, showCh
           }`}>
             {report.priority !== "medium" ? report.priority : ""}
           </span>
-          <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-bg-surface text-text-muted border border-border">
+          <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-surface text-text-tertiary border border-border">
             {CATEGORY_LABELS[report.category] || report.category}
           </span>
         </div>
@@ -311,8 +289,8 @@ export function ReportCard({ report, onUpdated, selected, onToggleSelect, showCh
       {/* Target info */}
       <div className="flex items-center gap-2 text-xs text-text-secondary">
         <span className="font-semibold text-accent">{TARGET_LABELS[report.target_type] || report.target_type}</span>
-        <span className="text-text-muted">ID: {report.target_id.slice(0, 8)}...</span>
-        <span className="text-text-muted">·</span>
+        <span className="text-text-tertiary">ID: {report.target_id.slice(0, 8)}...</span>
+        <span className="text-text-tertiary">·</span>
         <span>{getRelativeTime(report.created_at)}</span>
       </div>
 
@@ -326,7 +304,7 @@ export function ReportCard({ report, onUpdated, selected, onToggleSelect, showCh
 
       {/* Description */}
       {report.description && (
-        <p className="text-sm text-text-primary leading-relaxed bg-bg-surface/50 rounded-lg p-3 border border-border/50">
+        <p className="text-sm text-text-primary leading-relaxed bg-surface/50 rounded-lg p-3 border border-border/50">
           {report.description}
         </p>
       )}
@@ -366,7 +344,7 @@ export function ReportCard({ report, onUpdated, selected, onToggleSelect, showCh
               Escalate
             </button>
             {showEscalate && (
-              <div className="absolute z-10 top-7 left-0 bg-bg-surface border border-border rounded-lg shadow-lg p-1 min-w-[120px]">
+              <div className="absolute z-10 top-7 left-0 bg-surface border border-border rounded-lg shadow-lg p-1 min-w-[120px]">
                 {["low", "medium", "high", "urgent"].map((p) => (
                   <button
                     key={p}
@@ -390,7 +368,7 @@ export function ReportCard({ report, onUpdated, selected, onToggleSelect, showCh
               Assign
             </button>
             {showAssign && (
-              <div className="absolute z-10 top-7 left-0 bg-bg-surface border border-border rounded-lg shadow-lg p-1 min-w-[160px] max-h-48 overflow-y-auto">
+              <div className="absolute z-10 top-7 left-0 bg-surface border border-border rounded-lg shadow-lg p-1 min-w-[160px] max-h-48 overflow-y-auto">
                 {moderators.map((m) => (
                   <button
                     key={m.id}
@@ -417,14 +395,14 @@ export function ReportCard({ report, onUpdated, selected, onToggleSelect, showCh
 
       {/* Internal notes */}
       {showNotes && (
-        <div className="border border-border/50 rounded-xl p-4 bg-bg-surface/30 space-y-2">
+        <div className="border border-border/50 rounded-xl p-4 bg-surface/30 space-y-2">
           <p className="text-xs font-bold text-text-primary">Internal Notes</p>
           <textarea
             placeholder="Add internal notes..."
             value={internalNotes}
             onChange={(e) => setInternalNotes(e.target.value)}
             maxLength={2000}
-            className="w-full min-h-[60px] p-3 rounded-xl bg-bg-surface border border-border focus:border-accent focus:ring-4 focus:ring-accent/20 text-text-primary font-medium text-sm placeholder:text-text-muted transition-all duration-200 outline-none resize-none"
+            className="w-full min-h-[60px] p-3 rounded-xl bg-surface border border-border focus:border-accent focus:ring-4 focus:ring-accent/20 text-text-primary font-medium text-sm placeholder:text-text-tertiary transition-all duration-200 outline-none resize-none"
           />
           <div className="flex justify-end gap-2">
             <Button type="button" variant="secondary" onClick={() => setShowNotes(false)} isLoading={isSubmitting} className="text-xs">
@@ -439,9 +417,9 @@ export function ReportCard({ report, onUpdated, selected, onToggleSelect, showCh
 
       {/* Content preview */}
       {showPreview && (
-        <div className="border border-border/50 rounded-xl p-4 bg-bg-surface/30 space-y-3">
+        <div className="border border-border/50 rounded-xl p-4 bg-surface/30 space-y-3">
           {loadingPreview ? (
-            <div className="flex items-center gap-2 text-xs text-text-muted">
+            <div className="flex items-center gap-2 text-xs text-text-tertiary">
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
               Loading preview...
             </div>
@@ -464,7 +442,7 @@ export function ReportCard({ report, onUpdated, selected, onToggleSelect, showCh
                   )}
                   <span className="text-xs font-semibold text-text-primary">{preview.author_name}</span>
                   {preview.title && preview.target_type === "user" && (
-                    <span className="text-[11px] text-text-muted">{preview.title}</span>
+                    <span className="text-[11px] text-text-tertiary">{preview.title}</span>
                   )}
                 </div>
               )}
@@ -482,7 +460,7 @@ export function ReportCard({ report, onUpdated, selected, onToggleSelect, showCh
               {preview.extra && (
                 <div className="flex flex-wrap gap-2 pt-1">
                   {Object.entries(preview.extra).map(([key, val]) => (
-                    <span key={key} className="text-[10px] font-semibold px-2 py-1 rounded-full bg-bg-surface text-text-muted border border-border/50">
+                    <span key={key} className="text-[10px] font-semibold px-2 py-1 rounded-full bg-surface text-text-tertiary border border-border/50">
                       {key}: {String(val)}
                     </span>
                   ))}
@@ -490,16 +468,16 @@ export function ReportCard({ report, onUpdated, selected, onToggleSelect, showCh
               )}
             </>
           ) : (
-            <p className="text-xs text-text-muted">No preview available.</p>
+            <p className="text-xs text-text-tertiary">No preview available.</p>
           )}
         </div>
       )}
 
       {/* User report history */}
       {showHistory && (
-        <div className="border border-border/50 rounded-xl p-4 bg-bg-surface/30 space-y-3">
+        <div className="border border-border/50 rounded-xl p-4 bg-surface/30 space-y-3">
           {loadingHistory ? (
-            <div className="flex items-center gap-2 text-xs text-text-muted">
+            <div className="flex items-center gap-2 text-xs text-text-tertiary">
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
               Loading history...
             </div>
@@ -508,24 +486,24 @@ export function ReportCard({ report, onUpdated, selected, onToggleSelect, showCh
               <p className="text-xs font-bold text-text-primary">{userReports.length} report(s) against this user</p>
               <div className="space-y-2 max-h-48 overflow-y-auto">
                 {userReports.map((r) => (
-                  <div key={r.id} className="flex items-center gap-2 text-xs p-2 rounded-lg bg-bg-surface/50 border border-border/30">
+                  <div key={r.id} className="flex items-center gap-2 text-xs p-2 rounded-lg bg-surface/50 border border-border/30">
                     <span className={`w-2 h-2 rounded-full shrink-0 ${r.status === "resolved" ? "bg-emerald-400" : r.status === "dismissed" ? "bg-zinc-400" : "bg-amber-400"}`} />
                     <span className="font-semibold text-text-primary">{CATEGORY_LABELS[r.category] || r.category}</span>
-                    <span className="text-text-muted">·</span>
-                    <span className="text-text-muted">{getRelativeTime(r.created_at)}</span>
+                    <span className="text-text-tertiary">·</span>
+                    <span className="text-text-tertiary">{getRelativeTime(r.created_at)}</span>
                   </div>
                 ))}
               </div>
             </>
           ) : (
-            <p className="text-xs text-text-muted">No prior reports against this user.</p>
+            <p className="text-xs text-text-tertiary">No prior reports against this user.</p>
           )}
         </div>
       )}
 
       {/* Reviewer info */}
       {report.reviewer && (
-        <div className="flex items-center gap-2 text-xs text-text-muted">
+        <div className="flex items-center gap-2 text-xs text-text-tertiary">
           <span>Reviewed by</span>
           <span className="font-semibold text-text-primary">{report.reviewer?.profile?.display_name || "Moderator"}</span>
           {report.resolved_at && <span>· {getRelativeTime(report.resolved_at)}</span>}
@@ -534,7 +512,7 @@ export function ReportCard({ report, onUpdated, selected, onToggleSelect, showCh
 
       {/* Resolution note */}
       {report.resolution_note && !canAct && (
-        <p className="text-xs text-text-muted italic bg-bg-surface/30 rounded-lg p-3 border border-border/30">
+        <p className="text-xs text-text-tertiary italic bg-surface/30 rounded-lg p-3 border border-border/30">
           &ldquo;{report.resolution_note}&rdquo;
         </p>
       )}
@@ -554,7 +532,7 @@ export function ReportCard({ report, onUpdated, selected, onToggleSelect, showCh
             value={resolutionNote}
             onChange={(e) => setResolutionNote(e.target.value)}
             maxLength={2000}
-            className="w-full min-h-[60px] p-3 rounded-xl bg-bg-surface border border-border focus:border-accent focus:ring-4 focus:ring-accent/20 text-text-primary font-medium text-sm placeholder:text-text-muted transition-all duration-200 outline-none resize-none"
+            className="w-full min-h-[60px] p-3 rounded-xl bg-surface border border-border focus:border-accent focus:ring-4 focus:ring-accent/20 text-text-primary font-medium text-sm placeholder:text-text-tertiary transition-all duration-200 outline-none resize-none"
           />
           <div className="flex gap-3 justify-end flex-wrap">
             {report.target_type === "user" && (
@@ -615,7 +593,7 @@ export function ReportCard({ report, onUpdated, selected, onToggleSelect, showCh
       {/* Suspension duration picker */}
       {showSuspend && (
         <div className="flex flex-wrap gap-2 pt-2 border-t border-border/50">
-          <span className="text-xs text-text-muted self-center">Suspend for:</span>
+          <span className="text-xs text-text-tertiary self-center">Suspend for:</span>
           {SUSPEND_DURATIONS.map((d) => (
             <Button
               key={d.hours}
@@ -636,15 +614,15 @@ export function ReportCard({ report, onUpdated, selected, onToggleSelect, showCh
       {!canAct && (
         <div className="pt-2 border-t border-border/50">
           {loadingAppeal ? (
-            <div className="flex items-center gap-2 text-xs text-text-muted">
+            <div className="flex items-center gap-2 text-xs text-text-tertiary">
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
               Loading appeal...
             </div>
           ) : appeal ? (
-            <div className="bg-bg-surface/30 rounded-lg p-3 border border-border/30 space-y-1">
+            <div className="bg-surface/30 rounded-lg p-3 border border-border/30 space-y-1">
               <p className="text-xs font-bold text-text-primary">Appeal: <span className="capitalize">{appeal.status}</span></p>
               <p className="text-xs text-text-secondary">{appeal.reason}</p>
-              {appeal.review_note && <p className="text-xs text-text-muted italic">Reviewer: {appeal.review_note}</p>}
+              {appeal.review_note && <p className="text-xs text-text-tertiary italic">Reviewer: {appeal.review_note}</p>}
             </div>
           ) : showAppealForm ? (
             <div className="space-y-2">
@@ -653,7 +631,7 @@ export function ReportCard({ report, onUpdated, selected, onToggleSelect, showCh
                 value={appealReason}
                 onChange={(e) => setAppealReason(e.target.value)}
                 maxLength={1000}
-                className="w-full min-h-[60px] p-3 rounded-xl bg-bg-surface border border-border focus:border-accent focus:ring-4 focus:ring-accent/20 text-text-primary font-medium text-sm placeholder:text-text-muted transition-all duration-200 outline-none resize-none"
+                className="w-full min-h-[60px] p-3 rounded-xl bg-surface border border-border focus:border-accent focus:ring-4 focus:ring-accent/20 text-text-primary font-medium text-sm placeholder:text-text-tertiary transition-all duration-200 outline-none resize-none"
               />
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="secondary" onClick={() => setShowAppealForm(false)} isLoading={isSubmitting} className="text-xs">

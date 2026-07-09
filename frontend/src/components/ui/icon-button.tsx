@@ -43,9 +43,9 @@ export const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(f
     ghost:
       "text-text-secondary hover:bg-text-primary/10 hover:text-text-primary focus-visible:bg-text-primary/10",
     subtle:
-      "bg-bg-elevated text-text-primary hover:bg-border focus-visible:bg-border",
+      "bg-surface text-text-primary hover:bg-border focus-visible:bg-border",
     outline:
-      "border border-border text-text-primary hover:bg-bg-elevated focus-visible:bg-bg-elevated",
+      "border border-border text-text-primary hover:bg-surface focus-visible:bg-surface",
     primary:
       "bg-accent text-text-inverse hover:bg-accent-hover focus-visible:bg-accent-hover",
     danger:

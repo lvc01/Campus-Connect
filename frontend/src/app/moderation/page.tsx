@@ -1,14 +1,15 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Shield, Loader2, Filter, CheckSquare, Square, Trash2, CheckCircle } from "lucide-react";
+import { Shield, Loader2, Filter, Trash2, CheckCircle } from "lucide-react";
 import { LayoutShell } from "@/components/layout/LayoutShell";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { useAuth } from "@/context/auth-context";
 import { apiClient } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { ModerationAnalytics } from "@/components/moderation-analytics";
-import { ReportCard, type ReportData } from "@/components/report-card";
+import { ReportCard } from "@/components/report-card";
+import type { ReportData } from "@/types/moderation";
 
 const STATUS_FILTERS = ["", "pending", "reviewing", "resolved", "dismissed"] as const;
 const TARGET_FILTERS = ["", "post", "comment", "user", "listing", "club", "message"] as const;
@@ -91,6 +92,7 @@ export default function ModerationPage() {
   );
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchReports();
   }, [fetchReports, refreshKey]);
 
@@ -162,7 +164,7 @@ export default function ModerationPage() {
 
       <div className="px-6 pb-4">
         <div className="flex items-center gap-2 flex-wrap">
-          <Filter className="h-3.5 w-3.5 text-text-muted" />
+          <Filter className="h-3.5 w-3.5 text-text-tertiary" />
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
@@ -190,7 +192,7 @@ export default function ModerationPage() {
               <option key={c} value={c}>{CATEGORY_LABELS[c]}</option>
             ))}
           </select>
-          <span className="text-[11px] text-text-muted ml-2">
+          <span className="text-[11px] text-text-tertiary ml-2">
             {reports.length} report{reports.length !== 1 ? "s" : ""}
           </span>
         </div>
@@ -203,7 +205,7 @@ export default function ModerationPage() {
             <button onClick={toggleSelectAll} className="text-xs font-semibold text-accent hover:text-accent/80">
               {selectedIds.size === reports.length ? "Deselect all" : "Select all"}
             </button>
-            <span className="text-xs text-text-muted">{selectedIds.size} selected</span>
+            <span className="text-xs text-text-tertiary">{selectedIds.size} selected</span>
           </div>
           <div className="flex gap-2">
             <Button
@@ -238,7 +240,7 @@ export default function ModerationPage() {
           </div>
         ) : reports.length === 0 ? (
           <div className="py-12 text-center">
-            <Shield className="h-10 w-10 text-text-muted mx-auto mb-3" strokeWidth={1.5} />
+            <Shield className="h-10 w-10 text-text-tertiary mx-auto mb-3" strokeWidth={1.5} />
             <p className="text-sm font-semibold text-text-secondary">No reports found.</p>
           </div>
         ) : (
