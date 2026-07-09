@@ -83,7 +83,7 @@ export const CreateClub: React.FC<CreateClubProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-fade-in">
-      <div className="w-full max-w-lg bg-bg-elevated border border-border rounded-3xl p-6 sm:p-8 animate-pop-in relative shadow-2xl overflow-y-auto max-h-[90vh]">
+      <div className="w-full max-w-lg bg-surface border border-border rounded-3xl p-6 sm:p-8 animate-pop-in relative shadow-2xl overflow-y-auto max-h-[90vh]">
         <button
           type="button"
           onClick={onClose}
@@ -132,7 +132,7 @@ export const CreateClub: React.FC<CreateClubProps> = ({
               id="club-category"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl bg-bg-surface border border-border focus:border-accent focus:ring-4 focus:ring-accent/20 text-text-primary font-medium text-sm transition-all duration-200 outline-none"
+              className="w-full px-3 py-2 rounded-xl bg-surface border border-border focus:border-accent focus:ring-4 focus:ring-accent/20 text-text-primary font-medium text-sm transition-all duration-200 outline-none"
             >
               {CATEGORY_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
@@ -154,7 +154,7 @@ export const CreateClub: React.FC<CreateClubProps> = ({
               placeholder="What is your society about? Highlight activities, mission statement, or meeting details..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full min-h-[100px] p-4 rounded-xl bg-bg-surface border border-border focus:border-accent focus:ring-4 focus:ring-accent/20 text-text-primary font-medium text-sm placeholder:text-text-muted transition-all duration-200 outline-none resize-none"
+              className="w-full min-h-[100px] p-4 rounded-xl bg-surface border border-border focus:border-accent focus:ring-4 focus:ring-accent/20 text-text-primary font-medium text-sm placeholder:text-text-tertiary transition-all duration-200 outline-none resize-none"
               maxLength={2000}
             />
           </div>

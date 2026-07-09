@@ -8,17 +8,21 @@ threaded comments, likes, and bookmarks (saves). Denormalized counters
 
 import enum
 import uuid
+from datetime import datetime, timezone
 
 from sqlalchemy import (
     Boolean,
+    DateTime,
     Enum as SAEnum,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
     UniqueConstraint,
+    text,
 )
-from app.core.types import PortableARRAY
+from app.core.types import PortableARRAY, PortableJSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base, SoftDeleteMixin, TimestampMixin
@@ -63,6 +67,15 @@ class Post(Base, TimestampMixin, SoftDeleteMixin):
     """
 
     __tablename__ = "posts"
+    # Indexes mirror the performance migration (revision a1b2c3d4e5f6).
+    # Declared here so a future autogenerate sees them in metadata and won't
+    # try to drop them. The partial "live" index accelerates the common case
+    # where every read filters ``deleted_at IS NULL``.
+    __table_args__ = (
+        Index("ix_posts_created_at", "created_at"),
+        Index("ix_posts_live_created_at", "created_at", postgresql_where=text("deleted_at IS NULL")),
+        Index("ix_posts_deleted_at", "deleted_at"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     author_id: Mapped[uuid.UUID] = mapped_column(
@@ -83,11 +96,15 @@ class Post(Base, TimestampMixin, SoftDeleteMixin):
     like_count: Mapped[int] = mapped_column(Integer, default=0)
     comment_count: Mapped[int] = mapped_column(Integer, default=0)
     share_count: Mapped[int] = mapped_column(Integer, default=0)
+    edited_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     tags: Mapped[list[str] | None] = mapped_column(
         PortableARRAY, nullable=True,
     )
+    mentioned_users: Mapped[list[str] | None] = mapped_column(
+        PortableJSON, nullable=True,
+    )
     club_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("clubs.id", ondelete="SET NULL"), nullable=True,
+        ForeignKey("clubs.id", ondelete="SET NULL"), nullable=True, index=True,
     )
 
     # ── Relationships ─────────────────────────────────────────────────
@@ -166,6 +183,7 @@ class Comment(Base, TimestampMixin, SoftDeleteMixin):
         ForeignKey("comments.id", ondelete="CASCADE"), nullable=True,
     )
     like_count: Mapped[int] = mapped_column(Integer, default=0)
+    edited_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # ── Relationships ─────────────────────────────────────────────────
     post: Mapped["Post"] = relationship(back_populates="comments")

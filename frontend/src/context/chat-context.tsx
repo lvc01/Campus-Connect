@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/context/auth-context";
 import { apiClient } from "@/lib/api-client";
-import { getWSClient, releaseWSClient, WSClient } from "@/lib/websocket";
+import { getWSClient, releaseWSClient, fetchWsToken, WSClient } from "@/lib/websocket";
 
 interface UserProfile {
   id: string;
@@ -32,6 +32,13 @@ export interface Conversation {
   unread_count: number;
 }
 
+export interface MessageReply {
+  id: string;
+  sender: UserProfile;
+  content: string | null;
+  message_type: string;
+}
+
 export interface MessageData {
   id: string;
   conversation_id: string;
@@ -42,6 +49,7 @@ export interface MessageData {
   edited_at: string | null;
   created_at: string;
   reactions?: MessageReactionData[];
+  reply_to?: MessageReply | null;
 }
 
 export interface MessageReactionData {
@@ -58,7 +66,7 @@ interface ChatContextValue {
   setActiveConvId: (id: string | null) => void;
   messages: MessageData[];
   messagesLoading: boolean;
-  sendMessage: (content: string, messageType?: string, fileUrl?: string) => Promise<void>;
+  sendMessage: (content: string, messageType?: string, fileUrl?: string, replyToId?: string) => Promise<void>;
   editMessage: (messageId: string, content: string) => Promise<void>;
   deleteMessage: (messageId: string) => Promise<void>;
   toggleReaction: (messageId: string, emoji: string) => Promise<void>;
@@ -71,6 +79,7 @@ interface ChatContextValue {
   refreshConversations: () => Promise<void>;
   typingUsers: Set<string>;
   sendTyping: (convId: string, isTyping: boolean) => void;
+  readReceipts: Record<string, Record<string, string>>;
 }
 
 const ChatContext = createContext<ChatContextValue | null>(null);
@@ -136,18 +145,50 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     }
   }, [activeConvId, nextCursor, messagesLoading, fetchMessages]);
 
+  // Track last_read_at per conversation member: {convId: {userId: last_read_at}}
+  const [readReceipts, setReadReceipts] = useState<Record<string, Record<string, string>>>({});
+
+  // Initialize readReceipts from conversation member data
+  useEffect(() => {
+    const next: Record<string, Record<string, string>> = {};
+    for (const conv of conversations) {
+      for (const member of conv.members) {
+        if (member.last_read_at) {
+          next[conv.id] = next[conv.id] || {};
+          next[conv.id][member.user.id] = member.last_read_at;
+        }
+      }
+    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setReadReceipts((prev) => ({ ...prev, ...next }));
+  }, [conversations]);
+
+  // Mark read
+  const markRead = useCallback(async (convId: string) => {
+    try {
+      await apiClient.post(`/messaging/conversations/${convId}/read`);
+      setConversations((prev) =>
+        prev.map((c) => (c.id === convId ? { ...c, unread_count: 0 } : c))
+      );
+      setUnreadTotal((prev) => Math.max(0, prev - 1));
+    } catch (err) {
+      console.error("Failed to mark read", err);
+    }
+  }, []);
+
   // Switch active conversation
   const handleSetActiveConvId = useCallback((id: string | null) => {
     setActiveConvId(id);
     if (id) {
       fetchMessages(id);
+      markRead(id);
     } else {
       setMessages([]);
     }
-  }, [fetchMessages]);
+  }, [fetchMessages, markRead]);
 
   // Send message
-  const sendMessage = useCallback(async (content: string, messageType: string = "text", fileUrl?: string) => {
+  const sendMessage = useCallback(async (content: string, messageType: string = "text", fileUrl?: string, replyToId?: string) => {
     if (!activeConvId) return;
     if (messageType === "text" && !content.trim()) return;
     try {
@@ -155,6 +196,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         content: content.trim() || null,
         message_type: messageType,
         file_url: fileUrl || null,
+        reply_to_message_id: replyToId || null,
       });
       setMessages((prev) => [...prev, resp.data]);
       refreshConversations();
@@ -248,19 +290,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Mark read
-  const markRead = useCallback(async (convId: string) => {
-    try {
-      await apiClient.post(`/messaging/conversations/${convId}/read`);
-      setConversations((prev) =>
-        prev.map((c) => (c.id === convId ? { ...c, unread_count: 0 } : c))
-      );
-      setUnreadTotal((prev) => Math.max(0, prev - 1));
-    } catch (err) {
-      console.error("Failed to mark read", err);
-    }
-  }, []);
-
   // Create DM
   const createDM = useCallback(async (userId: string): Promise<string | null> => {
     try {
@@ -279,6 +308,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   // Initial load
   useEffect(() => {
     if (user) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       refreshConversations();
     }
   }, [user, refreshConversations]);
@@ -287,38 +317,53 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!user) return;
 
-    const token = localStorage.getItem("cc_access_token");
-    if (!token) return;
+    let unsubNewMessage: (() => void) | null = null;
+    let unsubTyping: (() => void) | null = null;
+    let unsubRead: (() => void) | null = null;
 
-    const ws = getWSClient(token);
-    wsRef.current = ws;
-    ws.connect();
+    fetchWsToken().then((token) => {
+      if (!token) return;
+      const ws = getWSClient(token);
+      wsRef.current = ws;
+      ws.connect();
 
-    const unsubNewMessage = ws.on("new_message", (data: MessageData) => {
-      if (data.conversation_id === activeConvIdRef.current) {
-        setMessages((prev) => [...prev, data]);
-        markRead(data.conversation_id);
-      }
-      refreshConversations();
-    });
+      unsubNewMessage = ws.on("new_message", (data: MessageData) => {
+        if (data.conversation_id === activeConvIdRef.current) {
+          setMessages((prev) => [...prev, data]);
+          markRead(data.conversation_id);
+        }
+        refreshConversations();
+      });
 
-    const unsubTyping = ws.on("typing", (data: { conversation_id: string; user_id: string; is_typing: boolean }) => {
-      if (data.conversation_id === activeConvIdRef.current) {
-        setTypingUsers((prev) => {
-          const next = new Set(prev);
-          if (data.is_typing) {
-            next.add(data.user_id);
-          } else {
-            next.delete(data.user_id);
-          }
-          return next;
-        });
-      }
+      unsubTyping = ws.on("typing", (data: { conversation_id: string; user_id: string; is_typing: boolean }) => {
+        if (data.conversation_id === activeConvIdRef.current) {
+          setTypingUsers((prev) => {
+            const next = new Set(prev);
+            if (data.is_typing) {
+              next.add(data.user_id);
+            } else {
+              next.delete(data.user_id);
+            }
+            return next;
+          });
+        }
+      });
+
+      unsubRead = ws.on("read", (data: { conversation_id: string; user_id: string; last_read_at: string }) => {
+        setReadReceipts((prev) => ({
+          ...prev,
+          [data.conversation_id]: {
+            ...prev[data.conversation_id],
+            [data.user_id]: data.last_read_at,
+          },
+        }));
+      });
     });
 
     return () => {
-      unsubNewMessage();
-      unsubTyping();
+      unsubNewMessage?.();
+      unsubTyping?.();
+      unsubRead?.();
       releaseWSClient();
     };
   }, [user, refreshConversations, markRead]);
@@ -352,6 +397,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         refreshConversations,
         typingUsers,
         sendTyping,
+        readReceipts,
       }}
     >
       {children}

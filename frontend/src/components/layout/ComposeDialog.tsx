@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { Image, X, Loader2, BarChart3, SmilePlus } from "lucide-react";
+import { Image, X, Loader2, BarChart3, SmilePlus, Users } from "lucide-react";
 import { toast } from "sonner";
 import data from "@emoji-mart/data";
 import Picker from "@emoji-mart/react";
 import { useAuth } from "@/context/auth-context";
 import { Avatar } from "@/components/Avatar";
+import { MentionTextarea } from "@/components/MentionTextarea";
 import { COMPOSE_OPEN_EVENT } from "@/lib/compose-events";
 import { apiClient } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
@@ -14,6 +15,12 @@ import { cn } from "@/lib/utils";
 const MAX = 500;
 const MAX_POLL_OPTIONS = 6;
 const MIN_POLL_OPTIONS = 2;
+
+interface MyClub {
+  id: string;
+  name: string;
+  is_member: boolean;
+}
 
 export function ComposeDialog() {
   const { user } = useAuth();
@@ -30,6 +37,12 @@ export function ComposeDialog() {
   const [pollMode, setPollMode] = useState(false);
   const [pollOptions, setPollOptions] = useState<string[]>(["", ""]);
 
+  // Mentions + club targeting
+  const [mentionIds, setMentionIds] = useState<string[]>([]);
+  const [myClubs, setMyClubs] = useState<MyClub[]>([]);
+  const [clubId, setClubId] = useState("");
+  const [announcement, setAnnouncement] = useState(false);
+
   // Emoji picker state
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
@@ -39,6 +52,14 @@ export function ComposeDialog() {
     window.addEventListener(COMPOSE_OPEN_EVENT, handler);
     return () => window.removeEventListener(COMPOSE_OPEN_EVENT, handler);
   }, []);
+
+  useEffect(() => {
+    if (!user || !open || myClubs.length > 0) return;
+    apiClient
+      .get("/clubs")
+      .then((res) => setMyClubs((res.data as MyClub[]).filter((c) => c.is_member)))
+      .catch(() => setMyClubs([]));
+  }, [user, open, myClubs.length]);
 
   useEffect(() => {
     if (open) document.body.style.overflow = "hidden";
@@ -144,9 +165,11 @@ export function ComposeDialog() {
         media_urls?: string[];
         post_type?: string;
         poll_options?: { text: string; position: number }[];
+        mentioned_users?: string[];
+        club_id?: string;
       } = {
         content: text.trim(),
-        visibility: "public",
+        visibility: clubId && announcement ? "club_only" : "public",
       };
 
       if (pollMode && pollOptions.some((o) => o.trim())) {
@@ -157,12 +180,17 @@ export function ComposeDialog() {
       }
 
       if (mediaUrl) payload.media_urls = [mediaUrl];
+      if (mentionIds.length > 0) payload.mentioned_users = mentionIds;
+      if (clubId) payload.club_id = clubId;
       await apiClient.post("/posts", payload);
       toast.success("Your post is live!");
       setText("");
       setMediaUrl("");
       setPollMode(false);
       setPollOptions(["", ""]);
+      setMentionIds([]);
+      setClubId("");
+      setAnnouncement(false);
       setOpen(false);
     } catch {
       toast.error("Failed to create post. Please try again.");
@@ -190,14 +218,14 @@ export function ComposeDialog() {
         <div className="flex gap-3">
           <Avatar user={user} size={40} />
           <div className="flex-1">
-            <textarea
+            <MentionTextarea
               ref={textareaRef}
               autoFocus
               value={text}
-              onChange={(e) => setText(e.target.value)}
+              onChange={setText}
+              onMentionsChange={setMentionIds}
               placeholder={pollMode ? "Ask a question..." : "What is happening on campus?"}
               rows={4}
-              className="w-full resize-none bg-transparent text-body text-text-primary outline-none placeholder:text-text-secondary"
             />
 
             {/* Media preview */}
@@ -257,6 +285,41 @@ export function ComposeDialog() {
               <p className="mt-2 text-xs text-like font-semibold">{uploadError}</p>
             )}
 
+            {/* Club targeting */}
+            {myClubs.length > 0 && (
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-2 rounded-lg border border-border bg-surface px-2.5 py-1.5">
+                  <Users className="h-4 w-4 text-text-secondary" />
+                  <select
+                    value={clubId}
+                    onChange={(e) => {
+                      setClubId(e.target.value);
+                      if (!e.target.value) setAnnouncement(false);
+                    }}
+                    className="bg-transparent text-body-sm text-text-primary outline-none"
+                  >
+                    <option value="">Post to feed</option>
+                    {myClubs.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {clubId && (
+                  <label className="flex items-center gap-2 text-body-sm text-text-secondary">
+                    <input
+                      type="checkbox"
+                      checked={announcement}
+                      onChange={(e) => setAnnouncement(e.target.checked)}
+                      className="h-4 w-4 accent-accent"
+                    />
+                    Members-only announcement
+                  </label>
+                )}
+              </div>
+            )}
+
             <div className="mt-3 flex items-center justify-between border-t border-border pt-3">
               <div className="flex items-center gap-1 text-accent relative">
                 <input
@@ -307,7 +370,7 @@ export function ComposeDialog() {
                       <Picker
                         data={data}
                         onEmojiSelect={handleEmojiSelect}
-                        theme="dark"
+                        theme="auto"
                         previewPosition="none"
                         skinTonePosition="none"
                         maxFrequentRows={2}

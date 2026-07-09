@@ -48,4 +48,9 @@ COPY . .
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["gunicorn", "app.main:app", \
+     "-w", "4", \
+     "-k", "uvicorn.workers.UvicornWorker", \
+     "-b", "0.0.0.0:8000", \
+     "--access-logfile", "-", \
+     "--error-logfile", "-"]

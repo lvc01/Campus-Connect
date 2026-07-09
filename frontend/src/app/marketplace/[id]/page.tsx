@@ -1,13 +1,16 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Bookmark, ChevronLeft, Loader2, MessageCircle, XCircle, Edit, Eye, Tag, Flag } from "lucide-react";
+import { Bookmark, MessageCircle, XCircle, Edit, Eye, Tag, Flag, MapPin } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/context/auth-context";
 import { apiClient } from "@/lib/api-client";
 import { getInitials, getRelativeTime } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { getApiErrorMessage, getApiErrorStatus } from "@/lib/api-error";
+import { DetailSkeleton } from "@/components/ui/detail-skeleton";
+import { ErrorState } from "@/components/ui/error-state";
+import { BackLink } from "@/components/layout/BackLink";
 import { CreateListing } from "@/components/create-listing";
 import { ReportModal } from "@/components/report-modal";
 import Link from "next/link";
@@ -34,7 +37,7 @@ const STATUS_STYLES: Record<string, string> = {
   active: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
   sold: "bg-like/10 text-like border-like/20",
   reserved: "bg-amber-500/10 text-amber-400 border-amber-500/20",
-  expired: "bg-text-muted/10 text-text-muted border-border",
+  expired: "bg-text-muted/10 text-text-tertiary border-border",
 };
 
 export default function ListingDetailPage() {
@@ -154,27 +157,28 @@ export default function ListingDetailPage() {
     }
   };
 
-  const handleEditCreated = (updated: any) => {
+  const handleEditCreated = (updated: Record<string, unknown>) => {
     setListing((prev) => prev ? { ...prev, ...updated } : prev);
     setShowEdit(false);
   };
 
   if (isLoading) {
     return (
-      <div className="flex-1 flex flex-col justify-center items-center bg-bg">
-        <Loader2 className="h-10 w-10 text-accent animate-spin" />
+      <div className="min-h-screen flex-1 bg-background">
+        <DetailSkeleton />
       </div>
     );
   }
 
   if (error || !listing) {
     return (
-      <div className="flex-1 min-h-screen bg-bg text-text-primary flex flex-col items-center justify-center gap-4">
-        <div className="bg-bg-surface border border-border rounded-2xl p-12 text-center">
-          <XCircle className="h-10 w-10 text-text-secondary mx-auto mb-3" strokeWidth={1.5} />
-          <h2 className="text-lg font-bold text-text-secondary">{error || "Listing not found"}</h2>
-          <Link href="/marketplace" className="text-accent text-sm font-semibold mt-2 inline-block hover:underline">Back to Marketplace</Link>
-        </div>
+      <div className="flex-1 min-h-screen bg-background text-text-primary flex flex-col items-center justify-center">
+        <ErrorState
+          title={error || "Listing not found"}
+          message="This listing may have been sold or removed."
+          onRetry={() => window.location.reload()}
+        />
+        <Link href="/marketplace" className="mt-2 text-accent text-sm font-semibold hover:underline">Back to Marketplace</Link>
       </div>
     );
   }
@@ -187,24 +191,21 @@ export default function ListingDetailPage() {
     : "";
 
   return (
-    <div className="flex-1 min-h-screen bg-bg text-text-primary flex flex-col relative">
+    <div className="flex-1 min-h-screen bg-background text-text-primary flex flex-col relative">
       <div className="absolute top-[-30%] left-[-10%] w-[800px] h-[800px] rounded-full bg-accent/5 blur-[160px] pointer-events-none" />
       <div className="absolute bottom-[-30%] right-[-10%] w-[800px] h-[800px] rounded-full bg-accent/5 blur-[160px] pointer-events-none" />
 
       <div className="flex-1 w-full max-w-5xl mx-auto px-4 py-8 relative z-10">
-        <Link href="/marketplace" className="inline-flex items-center gap-2 text-sm font-semibold text-text-secondary hover:text-text-primary transition-colors mb-6">
-          <ChevronLeft className="h-4 w-4" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
-          Back to Marketplace
-        </Link>
+        <BackLink href="/marketplace" label="Back to Marketplace" />
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
           <div className="lg:col-span-3 space-y-4">
-            <div className="bg-bg-surface border border-border rounded-2xl overflow-hidden">
+            <div className="bg-surface border border-border rounded-2xl overflow-hidden">
               {listing.images?.[selectedImage]?.url ? (
                 <img src={listing.images[selectedImage].url} alt={listing.title} className="w-full h-[400px] object-cover" />
               ) : (
-                <div className="w-full h-[400px] flex items-center justify-center bg-bg-surface">
-                  <XCircle className="h-16 w-16 text-text-muted" strokeWidth={1} />
+                <div className="w-full h-[400px] flex items-center justify-center bg-surface">
+                  <XCircle className="h-16 w-16 text-text-tertiary" strokeWidth={1} />
                 </div>
               )}
             </div>
@@ -224,7 +225,7 @@ export default function ListingDetailPage() {
               </div>
             )}
 
-            <div className="bg-bg-surface border border-border rounded-2xl p-6">
+            <div className="bg-surface border border-border rounded-2xl p-6">
               <h2 className="text-sm font-bold text-text-primary mb-3">Description</h2>
               <p className="text-sm text-text-secondary leading-relaxed whitespace-pre-wrap">
                 {listing.description || "No description provided."}
@@ -233,10 +234,10 @@ export default function ListingDetailPage() {
           </div>
 
           <div className="lg:col-span-2 space-y-5">
-            <div className="bg-bg-surface border border-border rounded-2xl p-6">
+            <div className="bg-surface border border-border rounded-2xl p-6">
               <div className="flex items-start justify-between gap-3 mb-4">
                 <h1 className="text-xl font-black tracking-tight leading-tight text-text-primary">{listing.title}</h1>
-                <span className="text-2xl font-black text-emerald-400 shrink-0">₹{listing.price.toLocaleString("en-IN")}</span>
+                <span className="text-2xl font-black text-success shrink-0">₹{listing.price.toLocaleString("en-IN")}</span>
               </div>
 
               <div className="flex flex-wrap gap-2 mb-4">
@@ -244,7 +245,7 @@ export default function ListingDetailPage() {
                   {CATEGORY_LABELS[listing.category] || listing.category}
                 </span>
                 {listing.condition && (
-                  <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-bg-surface text-text-muted border border-border">
+                  <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-surface text-text-tertiary border border-border">
                     {CONDITION_LABELS[listing.condition] || listing.condition}
                   </span>
                 )}
@@ -257,7 +258,7 @@ export default function ListingDetailPage() {
                 <button onClick={handleSaveToggle} className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-bold rounded-xl transition-all ${
                   isSaved
                     ? "bg-like/20 text-like border border-like/30"
-                    : "bg-bg-surface text-text-secondary hover:text-text-primary border border-border hover:bg-surface"
+                    : "bg-surface text-text-secondary hover:text-text-primary border border-border hover:bg-surface"
                 }`}>
                   <Bookmark
                     className="h-4 w-4"
@@ -337,8 +338,8 @@ export default function ListingDetailPage() {
               )}
             </div>
 
-            <div className="bg-bg-surface border border-border rounded-2xl p-5">
-              <h3 className="text-xs font-bold text-text-muted uppercase tracking-wider mb-4">Seller</h3>
+            <div className="bg-surface border border-border rounded-2xl p-5">
+              <h3 className="text-xs font-bold text-text-tertiary uppercase tracking-wider mb-4">Seller</h3>
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-12 h-12 rounded-xl bg-accent flex items-center justify-center shadow-md shrink-0">
                   <span className="text-lg font-bold text-text-inverse select-none">{getInitials(sellerName)}</span>
@@ -354,18 +355,18 @@ export default function ListingDetailPage() {
               {stars && (
                 <div className="flex items-center gap-2 mb-3">
                   <span className="text-amber-400 text-sm tracking-wider">{stars}</span>
-                  <span className="text-xs text-text-muted">({listing.rating_count})</span>
+                  <span className="text-xs text-text-tertiary">({listing.rating_count})</span>
                 </div>
               )}
 
               {!isOwner && (
-                <button onClick={() => setShowRatingForm(!showRatingForm)} className="w-full py-2 text-xs font-bold rounded-xl bg-bg-surface text-text-secondary hover:text-text-primary border border-border hover:bg-surface transition-all">
+                <button onClick={() => setShowRatingForm(!showRatingForm)} className="w-full py-2 text-xs font-bold rounded-xl bg-surface text-text-secondary hover:text-text-primary border border-border hover:bg-surface transition-all">
                   {showRatingForm ? "Cancel" : "Rate Seller"}
                 </button>
               )}
 
               {showRatingForm && (
-                <form onSubmit={handleSubmitRating} className="mt-4 space-y-3 p-4 rounded-xl bg-bg-surface/50 border border-border">
+                <form onSubmit={handleSubmitRating} className="mt-4 space-y-3 p-4 rounded-xl bg-surface/50 border border-border">
                   {ratingError && (
                     <div className="p-2 rounded-lg bg-like/10 border border-like/20 text-xs text-like">{ratingError}</div>
                   )}
@@ -373,7 +374,7 @@ export default function ListingDetailPage() {
                     <label className="text-xs font-semibold text-text-secondary block mb-2">Rating</label>
                     <div className="flex gap-1">
                       {[1, 2, 3, 4, 5].map((star) => (
-                        <button key={star} type="button" onClick={() => setRatingValue(star)} className={`text-xl transition-all ${star <= ratingValue ? "text-amber-400" : "text-text-muted hover:text-text-secondary"}`}>
+                        <button key={star} type="button" onClick={() => setRatingValue(star)} className={`text-xl transition-all ${star <= ratingValue ? "text-amber-400" : "text-text-tertiary hover:text-text-secondary"}`}>
                           ★
                         </button>
                       ))}
@@ -382,19 +383,33 @@ export default function ListingDetailPage() {
                   <textarea
                     placeholder="Write a review (optional)" value={ratingReview}
                     onChange={(e) => setRatingReview(e.target.value)}
-                    className="w-full min-h-[60px] p-3 rounded-xl bg-bg-surface border border-border text-text-primary text-xs font-medium placeholder:text-text-muted resize-none outline-none focus:border-accent/50"
+                    className="w-full min-h-[60px] p-3 rounded-xl bg-surface border border-border text-text-primary text-xs font-medium placeholder:text-text-tertiary resize-none outline-none focus:border-accent/50"
                   />
                   <Button type="submit" isLoading={isSubmittingRating} disabled={false} className="w-full text-xs">Submit Rating</Button>
                 </form>
               )}
             </div>
 
-            <div className="bg-bg-surface border border-border rounded-2xl p-5">
-              <h3 className="text-xs font-bold text-text-muted uppercase tracking-wider mb-3">Details</h3>
+            <div className="bg-surface border border-border rounded-2xl p-5">
+              <h3 className="text-xs font-bold text-text-tertiary uppercase tracking-wider mb-3">Details</h3>
               <div className="space-y-2 text-xs">
                 <div className="flex justify-between"><span className="text-text-secondary">Listed</span><span className="text-text-primary font-medium">{getRelativeTime(listing.created_at)}</span></div>
                 <div className="flex justify-between"><span className="text-text-secondary">Views</span><span className="text-text-primary font-medium">{listing.view_count.toLocaleString()}</span></div>
                 <div className="flex justify-between"><span className="text-text-secondary">Status</span><span className="text-text-primary font-medium capitalize">{listing.status}</span></div>
+                {listing.location && (
+                  <div className="flex justify-between gap-3">
+                    <span className="text-text-secondary shrink-0">Location</span>
+                    <a
+                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(listing.location)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-accent font-medium hover:underline text-right min-w-0"
+                    >
+                      <MapPin className="h-3 w-3 shrink-0" />
+                      <span className="truncate">{listing.location}</span>
+                    </a>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -403,7 +418,7 @@ export default function ListingDetailPage() {
 
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-fade-in">
-          <div className="w-full max-w-sm bg-bg-surface border border-border rounded-3xl p-6 animate-pop-in text-center">
+          <div className="w-full max-w-sm bg-surface border border-border rounded-3xl p-6 animate-pop-in text-center">
             <h3 className="text-lg font-bold text-text-primary mb-2">Delete Listing?</h3>
             <p className="text-xs text-text-secondary mb-6">This action cannot be undone.</p>
             <div className="flex gap-3 justify-center">
@@ -416,7 +431,7 @@ export default function ListingDetailPage() {
 
       {showStatusConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-fade-in">
-          <div className="w-full max-w-sm bg-bg-surface border border-border rounded-3xl p-6 animate-pop-in text-center">
+          <div className="w-full max-w-sm bg-surface border border-border rounded-3xl p-6 animate-pop-in text-center">
             <h3 className="text-lg font-bold text-text-primary mb-2 capitalize">
               Mark as {showStatusConfirm}?
             </h3>

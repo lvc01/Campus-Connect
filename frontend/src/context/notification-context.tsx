@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/context/auth-context";
 import { apiClient } from "@/lib/api-client";
-import { getWSClient } from "@/lib/websocket";
+import { getWSClient, fetchWsToken } from "@/lib/websocket";
 
 export interface NotificationData {
   id: string;
@@ -104,6 +104,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   // Initial load
   useEffect(() => {
     if (user) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLoading(true);
       fetchNotifications();
     } else {
@@ -127,18 +128,20 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   useEffect(() => {
     if (!user) return;
 
-    const token = localStorage.getItem("cc_access_token");
-    if (!token) return;
+    let unsubNotif: (() => void) | null = null;
 
-    const ws = getWSClient(token);
-    ws.connect();
+    fetchWsToken().then((token) => {
+      if (!token) return;
+      const ws = getWSClient(token);
+      ws.connect();
 
-    const unsubNotif = ws.on("notification", () => {
-      fetchNotifications();
+      unsubNotif = ws.on("notification", () => {
+        fetchNotifications();
+      });
     });
 
     return () => {
-      unsubNotif();
+      unsubNotif?.();
     };
   }, [user, fetchNotifications]);
 

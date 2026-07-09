@@ -5,6 +5,7 @@ export interface ListingData {
   price: number;
   category: string;
   condition: string | null;
+  location: string | null;
   status: string;
   view_count: number;
   created_at: string;

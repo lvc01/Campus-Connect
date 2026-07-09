@@ -6,7 +6,16 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/auth-context";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { AuthShell } from "@/components/auth/AuthShell";
+import { AuthCard } from "@/components/auth/AuthCard";
 import { getApiErrorMessage } from "@/lib/api-error";
+
+const PASSWORD_RULES = [
+  { test: (p: string) => p.length >= 8, label: "At least 8 characters" },
+  { test: (p: string) => /[A-Z]/.test(p), label: "An uppercase letter" },
+  { test: (p: string) => /[a-z]/.test(p), label: "A lowercase letter" },
+  { test: (p: string) => /[0-9]/.test(p), label: "A number" },
+];
 
 export default function RegisterPage() {
   const { register } = useAuth();
@@ -66,25 +75,12 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="flex-1 flex flex-col justify-center items-center px-4 py-12 bg-bg-main">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-accent text-text-inverse mb-6 shadow-lg shadow-accent/20">
-            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-              <circle cx="9" cy="7" r="4" />
-              <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-            </svg>
-          </div>
-          <h1 className="text-3xl font-bold text-text-main">Create your account</h1>
-          <p className="mt-2 text-sm text-text-muted">Join verified Chandigarh University campus circles</p>
-        </div>
-
-        {errors.form && (
-          <div className="mb-6 p-4 rounded-xl bg-error/10 border border-error/20 text-sm font-semibold text-error text-center">{errors.form}</div>
-        )}
-
+    <AuthShell>
+      <AuthCard
+        title="Create your account."
+        subtitle={<>Join verified Chandigarh University campus circles.</>}
+        error={errors.form}
+      >
         <form onSubmit={handleSubmit} className="space-y-5">
           <Input
             label="Full name"
@@ -108,34 +104,62 @@ export default function RegisterPage() {
             onChange={(e) => setEmail(e.target.value)}
             error={errors.email}
             required
-            helperText="We restrict registrations to Chandigarh University (cuchd.in) email addresses."
+            helperText="Restricted to Chandigarh University (@cuchd.in) email addresses."
           />
 
-          <Input
-            label="Password"
-            id="password"
-            type="password"
-            autoComplete="new-password"
-            placeholder="••••••••"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            error={errors.password}
-            required
-            helperText="Minimum 8 characters with at least one uppercase, lowercase and digit."
-          />
+          <div>
+            <Input
+              label="Password"
+              id="password"
+              type="password"
+              autoComplete="new-password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              error={errors.password}
+              required
+            />
+            {/* Live password-rule checklist */}
+            <ul className="mt-3 space-y-1">
+              {PASSWORD_RULES.map((rule) => {
+                const met = rule.test(password);
+                return (
+                  <li
+                    key={rule.label}
+                    className={`flex items-center gap-2 font-sans text-caption transition-colors ${
+                      met ? "text-success" : "text-text-tertiary"
+                    }`}
+                  >
+                    <span
+                      className={`inline-flex h-3.5 w-3.5 items-center justify-center rounded-full border transition-colors ${
+                        met ? "border-success bg-success/15" : "border-border-strong"
+                      }`}
+                    >
+                      {met && (
+                        <svg viewBox="0 0 12 12" className="h-2.5 w-2.5 text-success" fill="none" stroke="currentColor" strokeWidth="2.5">
+                          <polyline points="2,6.5 4.5,9 10,3.5" />
+                        </svg>
+                      )}
+                    </span>
+                    {rule.label}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
 
-          <Button type="submit" isLoading={isLoading} fullWidth className="mt-2">
+          <Button type="submit" isLoading={isLoading} fullWidth className="mt-2 py-3">
             Create account
           </Button>
         </form>
 
-        <p className="mt-8 text-center text-sm text-text-muted">
+        <p className="mt-8 text-center font-sans text-body-sm text-text-secondary">
           Already have an account?{" "}
           <Link href="/login" className="font-semibold text-accent hover:underline">
             Log in
           </Link>
         </p>
-      </div>
-    </div>
+      </AuthCard>
+    </AuthShell>
   );
 }

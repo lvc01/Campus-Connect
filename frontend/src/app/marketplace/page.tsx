@@ -28,6 +28,12 @@ const CATEGORIES = [
   { value: "accommodation", label: "Accommodation" },
   { value: "tutoring", label: "Tutoring" },
   { value: "electronics", label: "Electronics" },
+  { value: "clothing", label: "Clothing" },
+  { value: "furniture", label: "Furniture" },
+  { value: "sports", label: "Sports" },
+  { value: "food", label: "Food" },
+  { value: "transport", label: "Transport" },
+  { value: "services", label: "Services" },
   { value: "other", label: "Other" },
 ];
 
@@ -36,6 +42,8 @@ const SORT_OPTIONS = [
   { value: "oldest", label: "Oldest" },
   { value: "price_low", label: "Price: Low to High" },
   { value: "price_high", label: "Price: High to Low" },
+  { value: "views_desc", label: "Most Viewed" },
+  { value: "rating_desc", label: "Highest Rated" },
 ];
 
 type TabKey = "browse" | "my" | "saved";
@@ -99,6 +107,7 @@ export default function MarketplacePage() {
   );
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchListings();
   }, [fetchListings]);
 
@@ -127,7 +136,7 @@ export default function MarketplacePage() {
     );
   };
 
-  const handleListingCreated = (listing: any) => {
+  const handleListingCreated = (listing: Record<string, unknown>) => {
     setListings((prev) => [{ ...listing, is_saved: false } as ListingData, ...prev]);
     setShowCreate(false);
   };
@@ -216,13 +225,13 @@ export default function MarketplacePage() {
             <div className="flex items-center gap-3">
               <form onSubmit={handleSearch} className="flex-1 flex gap-2">
                 <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-text-muted" />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-text-tertiary" />
                   <input
                     type="text"
                     placeholder="Search listings..."
                     value={searchInput}
                     onChange={(e) => setSearchInput(e.target.value)}
-                    className="w-full pl-9 pr-3 py-1.5 rounded-lg border border-border bg-surface text-xs font-medium text-text-primary placeholder:text-text-muted outline-none focus:border-accent/50 transition-all"
+                    className="w-full pl-9 pr-3 py-1.5 rounded-lg border border-border bg-surface text-xs font-medium text-text-primary placeholder:text-text-tertiary outline-none focus:border-accent/50 transition-all"
                   />
                 </div>
                 <Button type="submit" size="sm" variant="secondary">
@@ -231,7 +240,7 @@ export default function MarketplacePage() {
               </form>
 
               <div className="flex items-center gap-2">
-                <ArrowUpDown className="h-3.5 w-3.5 text-text-muted" />
+                <ArrowUpDown className="h-3.5 w-3.5 text-text-tertiary" />
                 <select
                   value={sort}
                   onChange={(e) => setSort(e.target.value)}
@@ -248,21 +257,21 @@ export default function MarketplacePage() {
 
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2">
-                <span className="text-[11px] font-semibold text-text-muted">Price:</span>
+                <span className="text-[11px] font-semibold text-text-tertiary">Price:</span>
                 <input
                   type="number"
                   placeholder="Min"
                   value={minPrice}
                   onChange={(e) => setMinPrice(e.target.value)}
-                  className="w-20 px-2 py-1 rounded-lg border border-border bg-surface text-[11px] font-medium text-text-primary placeholder:text-text-muted outline-none focus:border-accent/50"
+                  className="w-20 px-2 py-1 rounded-lg border border-border bg-surface text-[11px] font-medium text-text-primary placeholder:text-text-tertiary outline-none focus:border-accent/50"
                 />
-                <span className="text-text-muted">–</span>
+                <span className="text-text-tertiary">–</span>
                 <input
                   type="number"
                   placeholder="Max"
                   value={maxPrice}
                   onChange={(e) => setMaxPrice(e.target.value)}
-                  className="w-20 px-2 py-1 rounded-lg border border-border bg-surface text-[11px] font-medium text-text-primary placeholder:text-text-muted outline-none focus:border-accent/50"
+                  className="w-20 px-2 py-1 rounded-lg border border-border bg-surface text-[11px] font-medium text-text-primary placeholder:text-text-tertiary outline-none focus:border-accent/50"
                 />
               </div>
 
@@ -310,7 +319,7 @@ export default function MarketplacePage() {
             </div>
           ) : listings.length === 0 ? (
             <div className="py-12 text-center">
-              <Package className="h-10 w-10 text-text-muted mx-auto mb-3" strokeWidth={1.5} />
+              <Package className="h-10 w-10 text-text-tertiary mx-auto mb-3" strokeWidth={1.5} />
               <p className="text-sm font-semibold text-text-secondary">
                 {tab === "my"
                   ? "You haven't posted any listings yet."

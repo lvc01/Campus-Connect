@@ -22,6 +22,7 @@ export interface UserProfileData {
 export interface UserData {
   id: string;
   email: string;
+  username?: string | null;
   role: string;
   is_verified: boolean;
   profile: UserProfileData | null;

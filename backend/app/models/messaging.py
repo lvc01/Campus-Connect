@@ -102,7 +102,7 @@ class ConversationMember(Base, TimestampMixin):
         ForeignKey("conversations.id", ondelete="CASCADE"), nullable=False,
     )
     user_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"), nullable=False,
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True,
     )
     role: Mapped[ConversationMemberRole] = mapped_column(
         SAEnum(ConversationMemberRole, name="conversation_member_role", create_constraint=True),
@@ -138,7 +138,7 @@ class Message(Base, TimestampMixin, SoftDeleteMixin):
         ForeignKey("conversations.id", ondelete="CASCADE"), nullable=False, index=True,
     )
     sender_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"), nullable=False,
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True,
     )
     content: Mapped[str | None] = mapped_column(Text, nullable=True)
     message_type: Mapped[MessageType] = mapped_column(
@@ -146,11 +146,17 @@ class Message(Base, TimestampMixin, SoftDeleteMixin):
         default=MessageType.text,
     )
     file_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    reply_to_message_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("messages.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
     edited_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # ── Relationships ─────────────────────────────────────────────────
     conversation: Mapped["Conversation"] = relationship(back_populates="messages")
     sender: Mapped["User"] = relationship(back_populates="sent_messages")  # type: ignore[name-defined]
+    reply_to: Mapped["Message | None"] = relationship(
+        remote_side="Message.id", foreign_keys=[reply_to_message_id],
+    )
     reactions: Mapped[list["MessageReaction"]] = relationship(
         back_populates="message", lazy="selectin", cascade="all, delete-orphan",
     )

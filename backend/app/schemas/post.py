@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from app.models.post import MediaType, PostType, PostVisibility
 from app.schemas.user import UserResponse
 
@@ -68,6 +68,7 @@ class CommentResponse(CommentBase):
   author: UserResponse
   like_count: int
   created_at: datetime
+  edited_at: datetime | None = None
   replies: list["CommentResponse"] = Field(default_factory=list)
 
 
@@ -77,20 +78,55 @@ class PostBase(BaseModel):
   content: str | None = Field(default=None, max_length=5000)
   post_type: PostType = PostType.text
   visibility: PostVisibility = PostVisibility.public
-  tags: list[str] | None = Field(default=None)
+  # Cap the list size and per-tag length so a malicious payload can't submit
+  # thousands of tags or multi-KB tag strings.
+  tags: list[str] | None = Field(default=None, max_length=20)
+  mentioned_users: list[str] | None = Field(default=None, max_length=20)
   club_id: uuid.UUID | None = None
+
+  @field_validator("tags")
+  @classmethod
+  def validate_tags(cls, v: list[str] | None) -> list[str] | None:
+    if v is None:
+      return v
+    for tag in v:
+      if len(tag) > 50:
+        raise ValueError("Each tag must be 50 characters or fewer.")
+    return v
 
 
 class PostCreate(PostBase):
-  media_urls: list[str] | None = Field(default=None)
-  poll_options: list[PollOptionCreate] | None = Field(default=None)
+  # Bound the media list and each URL's length.
+  media_urls: list[str] | None = Field(default=None, max_length=10)
+  poll_options: list[PollOptionCreate] | None = Field(default=None, max_length=10)
+
+  @field_validator("media_urls")
+  @classmethod
+  def validate_media_urls(cls, v: list[str] | None) -> list[str] | None:
+    if v is None:
+      return v
+    for url in v:
+      if len(url) > 500:
+        raise ValueError("Each media URL must be 500 characters or fewer.")
+    return v
 
 
 class PostUpdate(BaseModel):
   """Partial update for a post. Only provided fields are changed."""
   content: str | None = Field(default=None, max_length=5000)
   visibility: PostVisibility | None = None
-  tags: list[str] | None = None
+  tags: list[str] | None = Field(default=None, max_length=20)
+  mentioned_users: list[str] | None = Field(default=None, max_length=20)
+
+  @field_validator("tags")
+  @classmethod
+  def validate_tags(cls, v: list[str] | None) -> list[str] | None:
+    if v is None:
+      return v
+    for tag in v:
+      if len(tag) > 50:
+        raise ValueError("Each tag must be 50 characters or fewer.")
+    return v
 
 
 class PostResponse(PostBase):
@@ -104,6 +140,7 @@ class PostResponse(PostBase):
   share_count: int
   is_pinned: bool = False
   is_promoted: bool = False
+  edited_at: datetime | None = None
   created_at: datetime
   updated_at: datetime
   media: list[PostMediaResponse] = Field(default_factory=list)

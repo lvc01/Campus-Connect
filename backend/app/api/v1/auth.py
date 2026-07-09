@@ -3,11 +3,17 @@ Authentication API endpoints.
 
 Handles the complete auth lifecycle: registration with university
 email validation, OTP verification, login, token refresh, and logout.
+
+Token storage: access and refresh tokens are delivered via httpOnly,
+Secure, SameSite=Strict cookies — never exposed to JavaScript.
+A separate ``cc_csrf`` cookie (readable by JS) is used for CSRF
+protection on state-changing requests.
 """
 
+import secrets
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -21,11 +27,11 @@ from app.schemas.auth import (
     AuthResponse,
     ForgotPasswordRequest,
     LoginRequest,
+    PushTokenRequest,
     RefreshTokenRequest,
     RegisterRequest,
     ResendOTPRequest,
     ResetPasswordRequest,
-    TokenResponse,
     VerifyOTPRequest,
 )
 from app.schemas.common import MessageResponse
@@ -37,6 +43,69 @@ from app.services.user_service import get_user_service
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
+settings = get_settings()
+
+
+# ── Cookie helpers ────────────────────────────────────────────────────
+
+def _set_auth_cookies(
+    response: Response,
+    access_token: str,
+    refresh_token: str,
+) -> None:
+    """Set httpOnly cookies for access and refresh tokens, plus a CSRF cookie."""
+    is_prod = settings.ENVIRONMENT == "production"
+    # Production uses SameSite=strict (same-origin only).
+    # Dev uses SameSite=lax so cookies work with dev tunnels (cross-origin HTTPS).
+    same_site = "strict" if is_prod else "lax"
+
+    # Access token — short-lived, sent on every request
+    response.set_cookie(
+        key="cc_access_token",
+        value=access_token,
+        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        httponly=True,
+        secure=is_prod,
+        samesite=same_site,
+        path="/",
+    )
+
+    # Refresh token — long-lived, only sent to the refresh endpoint
+    response.set_cookie(
+        key="cc_refresh_token",
+        value=refresh_token,
+        max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
+        httponly=True,
+        secure=is_prod,
+        samesite=same_site,
+        path="/api/v1/auth/refresh",
+    )
+
+    # CSRF token — readable by JavaScript so it can be sent as a header.
+    # This is the "submit" half of the double-submit pattern; the matching
+    # validation lives in ``app.core.csrf.CsrfMiddleware``, which compares
+    # this cookie to the ``X-CSRF-Token`` header on every cookie-authed,
+    # state-changing request.
+    csrf_token = secrets.token_hex(32)
+    response.set_cookie(
+        key="cc_csrf",
+        value=csrf_token,
+        max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
+        httponly=False,
+        secure=is_prod,
+        samesite=same_site,
+        path="/",
+    )
+
+
+def _clear_auth_cookies(response: Response) -> None:
+    """Clear all auth-related cookies on logout."""
+    response.delete_cookie("cc_access_token", path="/")
+    response.delete_cookie("cc_refresh_token", path="/api/v1/auth/refresh")
+    response.delete_cookie("cc_csrf", path="/")
+
+
+# ── Routes ────────────────────────────────────────────────────────────
 
 @router.post(
     "/register",
@@ -67,16 +136,20 @@ async def register(
 )
 async def verify_otp(
     data: VerifyOTPRequest,
+    response: Response,
     db: AsyncSession = Depends(get_db),
     _: None = Depends(rate_limit(max_requests=10, window_seconds=60)),
 ) -> AuthResponse:
     """
     Verify the user's email address using the 6-digit OTP code.
 
-    On success, the account is activated and JWT tokens are returned.
+    On success, the account is activated and JWT tokens are returned
+    in httpOnly cookies.
     """
     auth_service = get_auth_service()
-    return await auth_service.verify_email(data, db)
+    result = await auth_service.verify_email(data, db)
+    _set_auth_cookies(response, result.access_token, result.refresh_token)
+    return result
 
 
 @router.post(
@@ -121,7 +194,9 @@ async def resend_otp(
         purpose=OTPPurpose.email_verification,
         db=db,
     )
-    await email_service.send_otp_email(
+    from app.worker.enqueue import enqueue_job
+    await enqueue_job(
+        "send_otp_email_job",
         to=user.email,
         otp=otp,
         purpose="Email Verification",
@@ -176,38 +251,50 @@ async def reset_password(
 )
 async def login(
     data: LoginRequest,
+    response: Response,
     db: AsyncSession = Depends(get_db),
     _: None = Depends(rate_limit(max_requests=10, window_seconds=60)),
 ) -> AuthResponse:
     """
     Authenticate with email and password.
 
-    Returns JWT access and refresh tokens along with user data.
-    The user must have a verified email to log in.
+    Returns JWT access and refresh tokens in httpOnly cookies along
+    with user data. The user must have a verified email to log in.
     """
     auth_service = get_auth_service()
-    return await auth_service.login(data, db)
+    result = await auth_service.login(data, db)
+    _set_auth_cookies(response, result.access_token, result.refresh_token)
+    return result
 
 
 @router.post(
     "/refresh",
-    response_model=TokenResponse,
+    response_model=None,
     summary="Refresh access token",
 )
 async def refresh(
-    data: RefreshTokenRequest,
+    request: Request,
+    response: Response,
     db: AsyncSession = Depends(get_db),
     _: None = Depends(rate_limit(max_requests=10, window_seconds=60)),
-) -> TokenResponse:
+) -> dict:
     """
     Exchange a valid refresh token for a new access + refresh token pair.
 
+    The refresh token is read from the ``cc_refresh_token`` httpOnly cookie.
     The old refresh token is revoked (token rotation). If a revoked
     token is reused, all sessions for the user are invalidated as a
     security measure.
     """
+    refresh_token = request.cookies.get("cc_refresh_token")
+    if not refresh_token:
+        from app.core.exceptions import UnauthorizedException
+        raise UnauthorizedException(detail="No refresh token provided.")
+
     auth_service = get_auth_service()
-    return await auth_service.refresh_token(data, db)
+    result = await auth_service.refresh_token_raw(refresh_token, db)
+    _set_auth_cookies(response, result.access_token, result.refresh_token)
+    return {"message": "Token refreshed."}
 
 
 @router.post(
@@ -216,26 +303,29 @@ async def refresh(
     summary="Log out",
 )
 async def logout(
+    response: Response,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> MessageResponse:
     """
-    Log out the current user by revoking all their refresh tokens.
+    Log out the current user by revoking all refresh tokens and
+    clearing auth cookies.
     """
     auth_service = get_auth_service()
     await auth_service.logout(current_user.id, db)
+    _clear_auth_cookies(response)
     return MessageResponse(message="Successfully logged out.")
 
 
 @router.post(
     "/ws-token",
-    response_model=TokenResponse,
+    response_model=None,
     summary="Get a short-lived WebSocket token",
 )
 async def get_ws_token(
     current_user: User = Depends(get_current_user),
-    _: None = Depends(rate_limit(max_requests=5, window_seconds=60)),
-) -> TokenResponse:
+    _: None = Depends(rate_limit(max_requests=30, window_seconds=60)),
+) -> dict:
     """
     Issue a short-lived JWT (5 min) scoped to WebSocket connections only.
 
@@ -243,7 +333,120 @@ async def get_ws_token(
     query string, which would leak it to server logs and browser history.
     """
     ws_token = create_ws_token(data={"sub": str(current_user.id)})
-    return TokenResponse(access_token=ws_token, refresh_token="", token_type="ws")
+    return {"access_token": ws_token, "refresh_token": "", "token_type": "ws"}
+
+
+# ── Mobile auth (token-based, no cookies) ─────────────────────────────
+
+@router.post(
+    "/mobile/login",
+    response_model=None,
+    summary="Mobile login (returns tokens in body)",
+)
+async def mobile_login(
+    data: LoginRequest,
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(rate_limit(max_requests=10, window_seconds=60)),
+) -> dict:
+    """
+    Authenticate with email and password for mobile apps.
+
+    Returns JWT access and refresh tokens in the response body (not cookies).
+    Mobile apps should store tokens in secure storage (iOS Keychain / Android
+    EncryptedSharedPreferences).
+    """
+    auth_service = get_auth_service()
+    result = await auth_service.login(data, db)
+    return {
+        "access_token": result.access_token,
+        "refresh_token": result.refresh_token,
+        "token_type": "bearer",
+        "user": result.user.model_dump(),
+    }
+
+
+@router.post(
+    "/mobile/refresh",
+    response_model=None,
+    summary="Mobile token refresh",
+)
+async def mobile_refresh(
+    data: RefreshTokenRequest,
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(rate_limit(max_requests=10, window_seconds=60)),
+) -> dict:
+    """
+    Exchange a valid refresh token for a new access + refresh token pair.
+
+    Accepts the refresh token in the request body (not cookies).
+    """
+    auth_service = get_auth_service()
+    result = await auth_service.refresh_token_raw(data.refresh_token, db)
+    return {
+        "access_token": result.access_token,
+        "refresh_token": result.refresh_token,
+        "token_type": result.token_type,
+    }
+
+
+@router.post(
+    "/mobile/logout",
+    response_model=MessageResponse,
+    summary="Mobile logout",
+)
+async def mobile_logout(
+    data: RefreshTokenRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> MessageResponse:
+    """
+    Revoke a refresh token for mobile apps.
+    """
+    from app.services.auth_service import get_auth_service
+    auth_service = get_auth_service()
+    await auth_service.revoke_refresh_token(data.refresh_token, db)
+    return MessageResponse(message="Successfully logged out.")
+
+
+@router.post(
+    "/mobile/push-token",
+    response_model=MessageResponse,
+    summary="Register push notification token",
+)
+async def register_push_token(
+    data: PushTokenRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> MessageResponse:
+    """
+    Store the Expo push token for the authenticated user.
+
+    The mobile app should call this endpoint after obtaining a push token
+    from Expo Push Notifications service. The token is sent as a JSON body
+    (not a query param) so it never lands in access logs.
+    """
+    from app.models.user import UserPushToken
+
+    # Check if token already exists for this user
+    existing = await db.execute(
+        select(UserPushToken).where(
+            UserPushToken.user_id == current_user.id,
+            UserPushToken.token == data.push_token,
+        )
+    )
+    if existing.scalar_one_or_none():
+        return MessageResponse(message="Push token already registered.")
+
+    # Store new push token
+    new_token = UserPushToken(
+        user_id=current_user.id,
+        token=data.push_token,
+        platform=data.platform,
+    )
+    db.add(new_token)
+    await db.commit()
+
+    return MessageResponse(message="Push token registered successfully.")
 
 
 @router.get(

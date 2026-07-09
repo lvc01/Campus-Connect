@@ -24,8 +24,11 @@ from app.models.marketplace import (
     ListingCondition,
     MarketplaceListing,
 )
-from app.models.post import Post, PostMedia, MediaType, PostType, PostVisibility
+from app.models.messaging import Conversation, ConversationMember, ConversationType, Message, MessageType
+from app.models.post import Comment, Like, Post, PostMedia, MediaType, PostType, PostVisibility
 from app.models.user import Profile, User, UserRole
+from app.models.notification import Notification as NotifModel, NotificationType
+from app.models.monetization import Ad, AdStatus
 
 
 FACULTIES = [
@@ -350,6 +353,143 @@ async def seed():
 
         await db.commit()
         print(f"  Created {len(courses)} courses with enrolled students")
+
+        # ── Conversations & Messages ─────────────────────────────────
+        print("Creating conversations and messages...")
+        conversations = []
+        for i in range(5):
+            member1 = users[i % len(users)]
+            member2 = users[(i + 1) % len(users)]
+            conv = Conversation(id=uuid.uuid4(), type=ConversationType.direct, created_by=member1.id)
+            db.add(conv)
+            await db.flush()
+            db.add(ConversationMember(conversation_id=conv.id, user_id=member1.id))
+            db.add(ConversationMember(conversation_id=conv.id, user_id=member2.id))
+            conversations.append(conv)
+
+            # Add messages to each conversation
+            msg_contents = [
+                "Hey! How are you doing?",
+                "Good thanks! Did you finish the assignment?",
+                "Not yet, working on it tonight.",
+                "Let me know if you need help!",
+                "Thanks, will do!",
+            ]
+            for j, content in enumerate(msg_contents[:randint(2, 5)]):
+                sender = member1 if j % 2 == 0 else member2
+                msg = Message(
+                    id=uuid.uuid4(),
+                    conversation_id=conv.id,
+                    sender_id=sender.id,
+                    content=content,
+                    message_type=MessageType.text,
+                )
+                db.add(msg)
+
+        await db.commit()
+        print(f"  Created {len(conversations)} conversations with messages")
+
+        # ── Comments ─────────────────────────────────────────────────
+        print("Creating comments...")
+        comment_contents = [
+            "Great post! Love this!",
+            "Congrats! Well deserved!",
+            "I was there, it was amazing!",
+            "Can you share more details?",
+            "Count me in!",
+            "This is so helpful, thanks!",
+            "Haha, totally agree!",
+            "Nice one!",
+            "Wow, looks awesome!",
+            "Good luck with everything!",
+        ]
+        for post in posts[:15]:
+            for _ in range(randint(1, 3)):
+                comment = Comment(
+                    id=uuid.uuid4(),
+                    post_id=post.id,
+                    author_id=choice(users).id,
+                    content=choice(comment_contents),
+                )
+                db.add(comment)
+
+        await db.commit()
+        print("  Created comments on posts")
+
+        # ── Likes ────────────────────────────────────────────────────
+        print("Creating likes...")
+        for post in posts:
+            likers = sample(users, randint(2, 8))
+            for u in likers:
+                existing = await db.execute(
+                    select(Like).where(Like.post_id == post.id, Like.user_id == u.id)
+                )
+                if not existing.scalar_one_or_none():
+                    db.add(Like(post_id=post.id, user_id=u.id))
+
+        await db.commit()
+        print("  Created likes on posts")
+
+        # ── Notifications ────────────────────────────────────────────
+        print("Creating notifications...")
+        notif_types = [NotificationType.like, NotificationType.comment, NotificationType.follow, NotificationType.mention, NotificationType.event_reminder]
+        for user in users[:5]:
+            for _ in range(randint(2, 5)):
+                notif = NotifModel(
+                    id=uuid.uuid4(),
+                    user_id=user.id,
+                    type=choice(notif_types),
+                    title=choice([
+                        "New like on your post",
+                        "New comment on your post",
+                        "Someone followed you",
+                        "You were mentioned in a post",
+                        "Upcoming event reminder",
+                    ]),
+                    actor_id=choice([u for u in users if u.id != user.id]).id,
+                    is_read=choice([True, False]),
+                )
+                db.add(notif)
+
+        await db.commit()
+        print("  Created notifications")
+
+        # ── Ads ──────────────────────────────────────────────────────
+        print("Creating ads...")
+        now = datetime.now(timezone.utc)
+        ads_data = [
+            {
+                "title": "Campus Bookstore — 20% Off Textbooks",
+                "content": "Use code SAVE20 at checkout. All new and used textbooks included.",
+                "target_url": "https://campusbookstore.example.com",
+            },
+            {
+                "title": "Student Housing — Apply Now",
+                "content": "Affordable on-campus accommodation. Limited spots for next semester.",
+                "target_url": "https://housing.example.com",
+            },
+            {
+                "title": "Free Coding Workshop",
+                "content": "Join our weekend Python workshop. All skill levels welcome.",
+                "target_url": "https://workshop.example.com",
+            },
+        ]
+        for ad_data in ads_data:
+            ad = Ad(
+                id=uuid.uuid4(),
+                advertiser_id=choice(users).id,
+                title=ad_data["title"],
+                content=ad_data["content"],
+                target_url=ad_data["target_url"],
+                status=AdStatus.active,
+                start_date=now - timedelta(days=7),
+                end_date=now + timedelta(days=30),
+                impression_count=randint(100, 5000),
+                click_count=randint(10, 500),
+            )
+            db.add(ad)
+        await db.commit()
+        print(f"  Created {len(ads_data)} ads")
 
     print("\n✅ Seeding complete!")
     print("\nDemo login credentials:")

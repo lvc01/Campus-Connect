@@ -6,7 +6,6 @@ import { MoreHorizontal, Pencil, Trash2, Flag, X } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/auth-context";
 import { apiClient } from "@/lib/api-client";
-import { cn } from "@/lib/utils";
 import { ReportModal } from "@/components/report-modal";
 
 interface PostMenuProps {

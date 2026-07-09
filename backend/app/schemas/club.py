@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field
-from app.models.club import ClubCategory, ClubMemberRole
+from app.models.club import ClubCategory, ClubMemberRole, ClubMemberStatus
 from app.schemas.user import UserResponse
 
 
@@ -14,6 +14,7 @@ class ClubMemberResponse(BaseModel):
   club_id: uuid.UUID
   user_id: uuid.UUID
   role: ClubMemberRole
+  status: ClubMemberStatus
   joined_at: datetime
   user: UserResponse
 
@@ -29,13 +30,14 @@ class ClubBase(BaseModel):
 
 
 class ClubCreate(ClubBase):
-  pass
+  requires_approval: bool = False
 
 
 class ClubUpdate(BaseModel):
   description: str | None = Field(default=None, max_length=2000)
   banner_url: str | None = Field(default=None, max_length=500)
   logo_url: str | None = Field(default=None, max_length=500)
+  requires_approval: bool | None = None
 
 
 class ClubRoleUpdate(BaseModel):
@@ -50,10 +52,12 @@ class ClubResponse(ClubBase):
   is_verified: bool
   is_approved: bool
   is_premium: bool
+  requires_approval: bool
   member_count: int
   created_by: uuid.UUID
   created_at: datetime
   
   # Contextual field indicating if requesting user is a member
   is_member: bool = False
+  is_pending: bool = False
   member_role: ClubMemberRole | None = None

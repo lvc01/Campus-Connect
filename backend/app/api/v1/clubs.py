@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.dependencies import get_current_user, require_role
 from app.core.exceptions import NotFoundException
+from app.core.rate_limiter import rate_limit
 from app.models.club import ClubCategory
 from app.models.user import User, UserRole
 from app.schemas.club import ClubCreate, ClubMemberResponse, ClubResponse, ClubRoleUpdate, ClubUpdate
@@ -19,6 +20,7 @@ router = APIRouter(prefix="/clubs", tags=["Clubs"])
     response_model=ClubResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Request a new campus society",
+    dependencies=[Depends(rate_limit(max_requests=5, window_seconds=3600))],
 )
 async def create_club(
     data: ClubCreate,
@@ -65,7 +67,8 @@ async def get_clubs(
   for club in clubs:
     res = ClubResponse.model_validate(club)
     membership = memberships_map.get(club.id)
-    res.is_member = membership is not None
+    res.is_member = membership is not None and membership.status.value == "approved"
+    res.is_pending = membership is not None and membership.status.value == "pending"
     res.member_role = membership.role if membership else None
     responses.append(res)
     
@@ -109,7 +112,8 @@ async def get_club_by_slug(
 
   response = ClubResponse.model_validate(club)
   membership = await club_service.check_user_membership(current_user.id, club.id, db)
-  response.is_member = membership is not None
+  response.is_member = membership is not None and membership.status.value == "approved"
+  response.is_pending = membership is not None and membership.status.value == "pending"
   response.member_role = membership.role if membership else None
   return response
 
@@ -148,9 +152,11 @@ async def join_club(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> MessageResponse:
-  """Join a campus club and increment its counter."""
+  """Join a campus club. May require approval based on club settings."""
   club_service = get_club_service()
-  await club_service.join_club(current_user.id, club_id, db)
+  result = await club_service.join_club(current_user.id, club_id, db)
+  if result == "pending":
+    return MessageResponse(message="Join request sent. Awaiting approval.")
   return MessageResponse(message="Successfully joined the society.")
 
 
@@ -184,6 +190,56 @@ async def get_club_members(
   club_service = get_club_service()
   members = await club_service.get_club_members(club_id, db)
   return [ClubMemberResponse.model_validate(m) for m in members]
+
+
+@router.get(
+    "/{club_id}/members/pending",
+    response_model=list[ClubMemberResponse],
+    summary="Get pending membership requests",
+)
+async def get_pending_members(
+    club_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[ClubMemberResponse]:
+  """Retrieve pending membership requests. Owner/admin only."""
+  club_service = get_club_service()
+  pending = await club_service.get_pending_members(club_id, db)
+  return [ClubMemberResponse.model_validate(m) for m in pending]
+
+
+@router.post(
+    "/{club_id}/members/{user_id}/approve",
+    response_model=ClubMemberResponse,
+    summary="Approve a membership request",
+)
+async def approve_member(
+    club_id: uuid.UUID,
+    user_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> ClubMemberResponse:
+  """Approve a pending membership request. Owner/admin only."""
+  club_service = get_club_service()
+  member = await club_service.approve_member(club_id, user_id, current_user.id, db)
+  return ClubMemberResponse.model_validate(member)
+
+
+@router.post(
+    "/{club_id}/members/{user_id}/reject",
+    response_model=MessageResponse,
+    summary="Reject a membership request",
+)
+async def reject_member(
+    club_id: uuid.UUID,
+    user_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> MessageResponse:
+  """Reject a pending membership request. Owner/admin only."""
+  club_service = get_club_service()
+  await club_service.reject_member(club_id, user_id, current_user.id, db)
+  return MessageResponse(message="Membership request rejected.")
 
 
 # ── Moderator Gate Controllers ──────────────────────────────────────

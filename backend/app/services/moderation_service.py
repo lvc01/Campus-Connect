@@ -4,7 +4,7 @@ from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.exceptions import NotFoundException, BadRequestException
+from app.core.exceptions import ForbiddenException, NotFoundException, BadRequestException
 from app.models.club import Club
 from app.models.marketplace import MarketplaceListing, ListingStatus
 from app.models.moderation import Report, ReportCategory, ReportPriority, ReportStatus, ReportTargetType, AppealStatus
@@ -618,12 +618,27 @@ class ModerationService:
         return await self.get_report(report_id, db)
 
     async def create_appeal(self, report_id: uuid.UUID, user_id: uuid.UUID, reason: str, db: AsyncSession):
-        """File an appeal against a moderation action."""
+        """File an appeal against a moderation action.
+
+        Only the reporter or the reported target may appeal — a random user
+        must not be able to file an appeal against someone else's report
+        (IDOR). The caller is expected to already be authenticated (this is
+        reachable even for deactivated users, since appeals are how a
+        suspended user contests their case).
+        """
         from app.models.moderation import ReportAppeal
         result = await db.execute(select(Report).where(Report.id == report_id))
         report = result.scalar_one_or_none()
         if not report:
             raise NotFoundException(detail="Report not found.")
+        # Ownership: the reporter or the target of the report may appeal.
+        is_involved = (
+            report.reporter_id == user_id or report.target_id == user_id
+        )
+        if not is_involved:
+            raise ForbiddenException(
+                detail="You can only appeal a report you are directly involved in."
+            )
         if report.status not in (ReportStatus.resolved, ReportStatus.dismissed):
             raise BadRequestException(detail="Can only appeal resolved or dismissed reports.")
         existing = await db.execute(select(ReportAppeal).where(ReportAppeal.report_id == report_id, ReportAppeal.user_id == user_id, ReportAppeal.status == AppealStatus.pending))

@@ -11,10 +11,18 @@ export default function HomePage() {
   const [tab, setTab] = useState<"foryou" | "faculty">("foryou");
   return (
     <LayoutShell>
-      <PageHeader title="Home" />
-      <FeedTabs value={tab} onChange={setTab} />
-      <ComposeBox />
-      <Feed tab={tab} />
+      <div className="reveal-up stagger-1">
+        <PageHeader title="Home" />
+      </div>
+      <div className="reveal-up stagger-2">
+        <FeedTabs value={tab} onChange={setTab} />
+      </div>
+      <div className="reveal-up stagger-3">
+        <ComposeBox />
+      </div>
+      <div className="reveal-up stagger-4">
+        <Feed tab={tab} />
+      </div>
     </LayoutShell>
   );
 }

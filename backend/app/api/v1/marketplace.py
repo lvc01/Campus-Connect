@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.core.exceptions import NotFoundException
+from app.core.rate_limiter import rate_limit
 from app.models.marketplace import MarketplaceListing
 from app.models.user import User
 from app.schemas.common import MessageResponse, PaginatedResponse
@@ -50,7 +51,7 @@ def _listing_to_response(listing: MarketplaceListing, avg_rating: float = 0.0, r
     return res
 
 
-@router.post("/listings", response_model=ListingResponse, status_code=status.HTTP_201_CREATED, summary="Create a marketplace listing")
+@router.post("/listings", response_model=ListingResponse, status_code=status.HTTP_201_CREATED, summary="Create a marketplace listing", dependencies=[Depends(rate_limit(max_requests=20, window_seconds=3600))])
 async def create_listing(
     data: ListingCreate,
     current_user: User = Depends(get_current_user),
@@ -170,7 +171,7 @@ async def unsave_listing(
     return MessageResponse(message="Listing unsaved.")
 
 
-@router.post("/listings/{listing_id}/ratings", response_model=SellerRatingResponse, status_code=status.HTTP_201_CREATED, summary="Rate a seller for a listing")
+@router.post("/listings/{listing_id}/ratings", response_model=SellerRatingResponse, status_code=status.HTTP_201_CREATED, summary="Rate a seller for a listing", dependencies=[Depends(rate_limit(max_requests=10, window_seconds=3600))])
 async def create_rating(
     listing_id: uuid.UUID,
     data: SellerRatingCreate,

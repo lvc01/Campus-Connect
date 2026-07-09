@@ -21,14 +21,44 @@ from app.config import get_settings
 settings = get_settings()
 
 # ── Engine & session ──────────────────────────────────────────────────
+#
+# Sizing rationale (see production-readiness audit):
+#   pool_size + max_overflow = 20 per worker process. With 4 Gunicorn workers
+#   that's 80 connections — comfortably under Postgres's default
+#   ``max_connections=100`` and leaves headroom for migrations / admin
+#   sessions. For real horizontal scaling, front Postgres with PgBouncer in
+#   transaction-pooling mode rather than raising this.
+#
+# ``echo`` is hard-wired to False. Letting it track DEBUG risks logging every
+# SQL statement (catastrophic for log volume and throughput) if DEBUG is ever
+# flipped on in a live environment.
 
-async_engine = create_async_engine(
-    settings.DATABASE_URL,
-    echo=settings.DEBUG,
-    pool_size=20,
-    max_overflow=10,
-    pool_pre_ping=True,
-)
+_IS_POSTGRES = settings.DATABASE_URL.startswith("postgresql")
+
+# Per-connection server options, applied only for Postgres. The SQLite test
+# path (aiosqlite) does not understand these and would fail to connect.
+_connect_args: dict = {}
+if _IS_POSTGRES:
+    # Kill any query that runs longer than 30s so a runaway statement can't
+    # pin a pooled connection indefinitely. Tune per workload if needed.
+    _connect_args["server_settings"] = {"statement_timeout": "30000"}
+
+# Pool-sizing kwargs are only valid for Postgres. SQLite (used by the test
+# suite via aiosqlite + StaticPool) rejects pool_size/max_overflow/pool_timeout.
+_engine_kwargs: dict = {"echo": False, "pool_pre_ping": True, "connect_args": _connect_args}
+if _IS_POSTGRES:
+    # pool_size + max_overflow = 20 per worker process. With 4 Gunicorn workers
+    # that's 80 connections — comfortably under Postgres's default
+    # ``max_connections=100`` and leaves headroom for migrations / admin
+    # sessions. For real horizontal scaling, front Postgres with PgBouncer in
+    # transaction-pooling mode rather than raising this.
+    _engine_kwargs.update(
+        pool_size=10,
+        max_overflow=10,
+        pool_timeout=30,  # seconds to wait for a free connection before giving up
+    )
+
+async_engine = create_async_engine(settings.DATABASE_URL, **_engine_kwargs)
 
 AsyncSessionLocal = async_sessionmaker(
     bind=async_engine,

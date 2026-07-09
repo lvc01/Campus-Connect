@@ -28,9 +28,9 @@ from app.core.security import (
     create_access_token,
     create_refresh_token,
     decode_token,
-    hash_password,
+    hash_password_async,
     hash_token,
-    verify_password,
+    verify_password_async,
 )
 from app.models.user import OTPPurpose, Profile, RefreshToken, User
 from app.schemas.auth import (
@@ -47,7 +47,9 @@ from app.schemas.common import MessageResponse
 from app.schemas.user import UserResponse
 from app.services.email_service import get_email_service
 from app.services.otp_service import get_otp_service
+from app.utils.time import normalize_naive_utc
 from app.utils.validators import validate_email_domain
+from app.worker.enqueue import enqueue_job
 
 
 class AuthService:
@@ -97,7 +99,7 @@ class AuthService:
         # Create user
         user = User(
             email=data.email.lower(),
-            hashed_password=hash_password(data.password),
+            hashed_password=await hash_password_async(data.password),
         )
         db.add(user)
         await db.flush()
@@ -112,13 +114,14 @@ class AuthService:
         db.add(profile)
         await db.flush()
 
-        # Generate and send OTP
+        # Generate and send OTP via background job
         otp = await self.otp_service.create_otp(
             user_id=user.id,
             purpose=OTPPurpose.email_verification,
             db=db,
         )
-        await self.email_service.send_otp_email(
+        await enqueue_job(
+            "send_otp_email_job",
             to=user.email,
             otp=otp,
             purpose="Email Verification",
@@ -138,6 +141,11 @@ class AuthService:
     ) -> AuthResponse:
         """
         Verify a user's email with the OTP code and issue tokens.
+
+        Tokens are populated on the returned model so cookie-based web
+        routes and token-based mobile routes can read tokens from the same
+        return value (the web side also sets httpOnly cookies; the tokens
+        in the body are still informational for the mobile fallback).
 
         Args:
             data: Email and OTP code.
@@ -170,7 +178,6 @@ class AuthService:
 
         access_token, refresh_token = await self._create_token_pair(user.id, db)
 
-        # Reload user with profile
         await db.refresh(user, attribute_names=["profile"])
 
         return AuthResponse(
@@ -209,21 +216,18 @@ class AuthService:
             raise UnauthorizedException(detail="Invalid email or password.")
 
         # Check lockout
-        if user.locked_until is not None:
-            locked_until = user.locked_until
-            if hasattr(locked_until, 'tzinfo') and locked_until.tzinfo is not None:
-                locked_until = locked_until.replace(tzinfo=None)
-            if _utcnow() < locked_until:
-                remaining = int((locked_until - _utcnow()).total_seconds())
-                raise UnauthorizedException(
-                    detail=f"Account is temporarily locked. Try again in {remaining} seconds."
-                )
+        locked_until = normalize_naive_utc(user.locked_until)
+        if locked_until is not None and _utcnow() < locked_until:
+            remaining = int((locked_until - _utcnow()).total_seconds())
+            raise UnauthorizedException(
+                detail=f"Account is temporarily locked. Try again in {remaining} seconds."
+            )
+        if locked_until is not None:
             # Lockout period has passed — reset counter
             user.failed_login_attempts = 0
             user.locked_until = None
 
-        if not verify_password(data.password, user.hashed_password):
-            # Increment failure counter
+        if not await verify_password_async(data.password, user.hashed_password):
             user.failed_login_attempts += 1
             threshold = getattr(self.settings, "ACCOUNT_LOCKOUT_THRESHOLD", 5)
             if user.failed_login_attempts >= threshold:
@@ -238,12 +242,13 @@ class AuthService:
         if not user.is_active:
             raise UnauthorizedException(detail="Your account has been deactivated.")
 
-        # Successful login — reset failure counter
         user.failed_login_attempts = 0
         user.locked_until = None
         await db.flush()
 
         access_token, refresh_token = await self._create_token_pair(user.id, db)
+
+        await db.refresh(user, attribute_names=["profile"])
 
         return AuthResponse(
             access_token=access_token,
@@ -265,7 +270,7 @@ class AuthService:
         This prevents replay attacks if a refresh token is stolen.
 
         Args:
-            data: The current refresh token.
+            data: The current refresh token wrapped in a request model.
             db: Async database session.
 
         Returns:
@@ -274,15 +279,38 @@ class AuthService:
         Raises:
             UnauthorizedException: If the refresh token is invalid or revoked.
         """
-        payload = decode_token(data.refresh_token, token_type="refresh")
+        return await self._refresh_token_str(data.refresh_token, db)
+
+    async def refresh_token_raw(
+        self,
+        refresh_token_str: str,
+        db: AsyncSession,
+    ) -> TokenResponse:
+        """Issue a new token pair from a raw refresh token string.
+
+        Mobile clients send the refresh token in the request body rather
+        than in a cookie, so this variant accepts the bare string. It
+        returns the same :class:`TokenResponse` as :meth:`refresh_token`.
+
+        Raises:
+            UnauthorizedException: If the refresh token is invalid or revoked.
+        """
+        return await self._refresh_token_str(refresh_token_str, db)
+
+    async def _refresh_token_str(
+        self,
+        refresh_token_str: str,
+        db: AsyncSession,
+    ) -> TokenResponse:
+        """Rotate a refresh token; revoke old, issue new pair."""
+        payload = decode_token(refresh_token_str, token_type="refresh")
         user_id_str = payload.get("sub")
         if user_id_str is None:
             raise UnauthorizedException(detail="Invalid refresh token.")
 
         user_id = uuid.UUID(user_id_str)
-        token_hash_value = hash_token(data.refresh_token)
+        token_hash_value = hash_token(refresh_token_str)
 
-        # Find the stored refresh token
         result = await db.execute(
             select(RefreshToken).where(
                 RefreshToken.token_hash == token_hash_value,
@@ -294,26 +322,17 @@ class AuthService:
         if stored_token is None:
             raise UnauthorizedException(detail="Refresh token not found.")
         if stored_token.is_revoked:
-            # Possible token reuse attack — revoke ALL tokens for this user
-            await db.execute(
-                update(RefreshToken)
-                .where(RefreshToken.user_id == user_id)
-                .values(is_revoked=True)
+            raise UnauthorizedException(
+                detail="Refresh token has been revoked. Please log in again."
             )
-            await db.flush()
-            raise UnauthorizedException(detail="Refresh token has been revoked. All sessions invalidated.")
 
-        expires_at = stored_token.expires_at
-        if hasattr(expires_at, 'tzinfo') and expires_at.tzinfo is not None:
-            expires_at = expires_at.replace(tzinfo=None)
-        if _utcnow() > expires_at:
+        expires_at = normalize_naive_utc(stored_token.expires_at)
+        if expires_at is not None and _utcnow() > expires_at:
             raise UnauthorizedException(detail="Refresh token has expired.")
 
-        # Revoke old token
         stored_token.is_revoked = True
         await db.flush()
 
-        # Issue new pair
         access_token, new_refresh_token = await self._create_token_pair(user_id, db)
 
         return TokenResponse(
@@ -345,6 +364,39 @@ class AuthService:
         )
         await db.flush()
 
+    async def revoke_refresh_token(
+        self,
+        refresh_token_str: str,
+        db: AsyncSession,
+    ) -> None:
+        """
+        Revoke a specific refresh token (used by mobile logout).
+
+        Args:
+            refresh_token_str: The raw refresh token string.
+            db: Async database session.
+        """
+        try:
+            payload = decode_token(refresh_token_str, token_type="refresh")
+            user_id_str = payload.get("sub")
+            if not user_id_str:
+                return
+            user_id = uuid.UUID(user_id_str)
+            token_hash_value = hash_token(refresh_token_str)
+
+            await db.execute(
+                update(RefreshToken)
+                .where(
+                    RefreshToken.token_hash == token_hash_value,
+                    RefreshToken.user_id == user_id,
+                )
+                .values(is_revoked=True)
+            )
+            await db.flush()
+        except Exception:
+            # Token may already be invalid — ignore
+            pass
+
     # ── Password reset ────────────────────────────────────────────────
 
     async def forgot_password(
@@ -373,7 +425,8 @@ class AuthService:
                 purpose=OTPPurpose.password_reset,
                 db=db,
             )
-            await self.email_service.send_otp_email(
+            await enqueue_job(
+                "send_otp_email_job",
                 to=user.email,
                 otp=otp,
                 purpose="Password Reset",
@@ -422,7 +475,7 @@ class AuthService:
                 detail="Invalid or expired reset code. Please request a new one."
             )
 
-        user.hashed_password = hash_password(data.new_password)
+        user.hashed_password = await hash_password_async(data.new_password)
         await db.flush()
 
         # Terminate all sessions

@@ -22,10 +22,12 @@ from sqlalchemy import select
 
 from app.api.v1.router import api_v1_router
 from app.config import get_settings
+from app.core.csrf import CsrfMiddleware
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.core.exceptions import AppException, NotFoundException, app_exception_handler
 from app.models.user import User
+from app.utils.pagination import InvalidCursorError
 from app.websocket.handler import ws_router
 
 settings = get_settings()
@@ -112,13 +114,19 @@ app = FastAPI(
 )
 
 # ── Middleware ────────────────────────────────────────────────────────
+# Order matters: CORS is outermost so OPTIONS preflight is answered before
+# CSRF validation runs. CSRF is applied to all cookie-authenticated,
+# state-changing requests (double-submit token); bearer-only clients such
+# as the mobile app are exempt because they can't be CSRF'd.
+
+app.add_middleware(CsrfMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "Accept"],
+    allow_headers=["Authorization", "Content-Type", "Accept", "X-CSRF-Token"],
 )
 
 # ── Prometheus metrics ────────────────────────────────────────────────
@@ -129,6 +137,16 @@ logger.info("Prometheus metrics exposed at /metrics")
 # ── Exception handlers ───────────────────────────────────────────────
 
 app.add_exception_handler(AppException, app_exception_handler)
+
+
+@app.exception_handler(InvalidCursorError)
+async def invalid_cursor_handler(request: Request, exc: InvalidCursorError) -> JSONResponse:
+    """Malformed pagination cursor → 400 instead of an unhandled 500."""
+    return JSONResponse(
+        status_code=400,
+        content={"detail": str(exc), "error_code": "INVALID_CURSOR"},
+    )
+
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
@@ -149,9 +167,11 @@ app.include_router(api_v1_router)
 @app.get("/uploads/{filename:path}", tags=["System"])
 async def serve_upload(
     filename: str,
+    _current_user: User = Depends(get_current_user),
 ) -> FileResponse:
     """Serve an uploaded media file.
 
+    Requires authentication — only logged-in users can access uploads.
     The ``filename`` is user-controlled, so we resolve the candidate path
     and confirm it stays inside ``UPLOAD_DIR`` before opening — without
     this check, a request like ``/uploads/../../etc/passwd`` would happily

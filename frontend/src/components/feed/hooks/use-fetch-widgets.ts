@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { apiClient } from "@/lib/api-client";
-import type { ActiveAdData, EventData } from "@/types/post";
+import type { ActiveAdData } from "@/types/ads";
+import type { EventData } from "@/types/events";
 
 export interface UseFetchWidgetsResult {
   events: EventData[];

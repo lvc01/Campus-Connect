@@ -1,18 +1,19 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import {
-  Pencil, Search, UserPlus, X, Paperclip, Smile, MoreVertical,
-  PencilIcon, Trash2, VolumeX, Volume2, Download, FileText, Image as ImageIcon,
-  ArrowLeft, MessageSquareOff,
+  Pencil, Search, UserPlus, X, Paperclip, Smile,
+  PencilIcon, Trash2, VolumeX, Volume2, FileText,
+  ArrowLeft, Reply, Flag,
 } from "lucide-react";
 import { LayoutShell } from "@/components/layout/LayoutShell";
 import { Avatar } from "@/components/Avatar";
+import { ReportModal } from "@/components/report-modal";
 import { useAuth } from "@/context/auth-context";
 import { useChat, Conversation, MessageData } from "@/context/chat-context";
 import { apiClient } from "@/lib/api-client";
 import { cn, getRelativeTimeShort } from "@/lib/utils";
-import data from "@emoji-mart/data";
 
 const QUICK_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🔥", "👏", "🎉"];
 
@@ -30,14 +31,20 @@ function MessageBubble({
   onDelete,
   onReact,
   onOpenEmojiPicker,
+  onReply,
+  onReport,
+  seen,
 }: {
   msg: MessageData;
   isMine: boolean;
-  user: any;
+  user: { id: string; profile?: { display_name?: string; avatar_url?: string | null } | null; email?: string };
   onEdit: (msg: MessageData) => void;
   onDelete: (msgId: string) => void;
   onReact: (msgId: string, emoji: string) => void;
   onOpenEmojiPicker: (msgId: string, anchor: HTMLElement) => void;
+  onReply: (msg: MessageData) => void;
+  onReport: (msgId: string) => void;
+  seen?: boolean;
 }) {
   const [showMenu, setShowMenu] = useState(false);
   const [showReactions, setShowReactions] = useState(false);
@@ -88,6 +95,21 @@ function MessageBubble({
                 : "bg-surface text-text-primary border border-border",
             )}
           >
+            {msg.reply_to && (
+              <div
+                className={cn(
+                  "mb-1.5 rounded-lg border-l-2 px-2 py-1 text-[11px]",
+                  isMine ? "border-white/50 bg-black/10" : "border-accent bg-accent/5",
+                )}
+              >
+                <span className="block font-semibold opacity-80">
+                  {msg.reply_to.sender?.profile?.display_name || msg.reply_to.sender?.email?.split("@")[0] || "Reply"}
+                </span>
+                <span className="block truncate opacity-70">
+                  {msg.reply_to.message_type !== "text" ? "Attachment" : msg.reply_to.content}
+                </span>
+              </div>
+            )}
             {isImage && (
               <img src={msg.file_url!} alt="" className="rounded-lg max-w-[280px] max-h-[200px] object-cover mb-1" />
             )}
@@ -135,9 +157,10 @@ function MessageBubble({
             </div>
           )}
 
-          {/* Timestamp */}
+          {/* Timestamp + read receipt */}
           <p className={cn("text-[10px] text-text-secondary mt-0.5 font-medium", isMine ? "text-right" : "text-left")}>
             {new Date(msg.created_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+            {isMine && seen && <span className="ml-1.5 text-accent">· Seen</span>}
           </p>
 
           {/* Hover menu */}
@@ -155,7 +178,14 @@ function MessageBubble({
               >
                 <Smile className="h-3.5 w-3.5" />
               </button>
-              {isMine && (
+              <button
+                onClick={() => onReply(msg)}
+                className="p-1.5 rounded-md hover:bg-surface transition-colors text-text-secondary"
+                title="Reply"
+              >
+                <Reply className="h-3.5 w-3.5" />
+              </button>
+              {isMine ? (
                 <>
                   <button
                     onClick={() => { onEdit(msg); setShowMenu(false); }}
@@ -172,6 +202,14 @@ function MessageBubble({
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 </>
+              ) : (
+                <button
+                  onClick={() => onReport(msg.id)}
+                  className="p-1.5 rounded-md hover:bg-surface transition-colors text-text-secondary"
+                  title="Report"
+                >
+                  <Flag className="h-3.5 w-3.5" />
+                </button>
               )}
             </div>
           </div>
@@ -181,8 +219,10 @@ function MessageBubble({
   );
 }
 
-export default function MessagesPage() {
+function MessagesPageInner() {
   const { user } = useAuth();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const {
     conversations,
     activeConvId,
@@ -208,9 +248,11 @@ export default function MessagesPage() {
   const [messageInput, setMessageInput] = useState("");
   const [showNewConv, setShowNewConv] = useState(false);
   const [userSearch, setUserSearch] = useState("");
-  const [userResults, setUserResults] = useState<any[]>([]);
+  const [userResults, setUserResults] = useState<{ id: string; profile?: { display_name?: string; avatar_url?: string | null } | null; email?: string }[]>([]);
   const [searching, setSearching] = useState(false);
   const [editingMsg, setEditingMsg] = useState<MessageData | null>(null);
+  const [replyingTo, setReplyingTo] = useState<MessageData | null>(null);
+  const [reportMsgId, setReportMsgId] = useState<string | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showMsgSearch, setShowMsgSearch] = useState(false);
   const [msgSearchQuery, setMsgSearchQuery] = useState("");
@@ -218,56 +260,34 @@ export default function MessagesPage() {
   const [searchingMessages, setSearchingMessages] = useState(false);
   const [reactingToMsgId, setReactingToMsgId] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [mobileShowChat, setMobileShowChat] = useState(false);
+
+  // Deep-link from a profile's "Message" button: /messages?to=<userId>.
+  // Create/open the DM, then strip the param so it doesn't re-fire.
+  const handledToRef = useRef(false);
+  useEffect(() => {
+    const to = searchParams.get("to");
+    if (!to || handledToRef.current) return;
+    handledToRef.current = true;
+    createDM(to).then((convId) => {
+      if (convId) setMobileShowChat(true);
+      router.replace("/messages");
+    });
+  }, [searchParams, createDM, router]);
+
+  // Id of my most recent message — used to anchor the "Seen" receipt.
+  const lastOwnMsgId = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].sender.id === user?.id) return messages[i].id;
+    }
+    return null;
+  }, [messages, user?.id]);
 
   const typingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isTypingRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  if (!user) return null;
-
-  const active = conversations.find((c) => c.id === activeConvId);
-  const partner = active?.members.find((m) => m.user.id !== user.id)?.user;
-  const isMuted = active?.members.find((m) => m.user.id === user.id)?.is_muted ?? false;
-
-  const filtered = search.trim()
-    ? conversations.filter((c) => {
-        const q = search.toLowerCase();
-        const name = getOtherName(c, user.id).toLowerCase();
-        const lastMsg = (c.last_message || "").toLowerCase();
-        return name.includes(q) || lastMsg.includes(q);
-      })
-    : conversations;
-
-  // Mark read when switching conversations
-  useEffect(() => {
-    if (activeConvId && active && active.unread_count > 0) {
-      markRead(activeConvId);
-    }
-  }, [activeConvId]);
-
-  // Auto-scroll to bottom on new messages
-  useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [messages.length]);
-
-  const handleSearchUsers = async (q: string) => {
-    setUserSearch(q);
-    if (q.length < 2) { setUserResults([]); return; }
-    setSearching(true);
-    try {
-      const res = await apiClient.get(`/search`, { params: { q } });
-      setUserResults((res.data?.users || []).filter((u: any) => u.id !== user.id));
-    } catch { setUserResults([]); } finally { setSearching(false); }
-  };
-
-  const handleStartDM = async (userId: string) => {
-    const convId = await createDM(userId);
-    if (convId) { setActiveConvId(convId); setShowNewConv(false); setUserSearch(""); setUserResults([]); }
-  };
 
   const handleTyping = useCallback(() => {
     if (!activeConvId) return;
@@ -282,13 +302,74 @@ export default function MessagesPage() {
     }, 3000);
   }, [activeConvId, sendTyping]);
 
+  // Mark read when switching conversations
+  useEffect(() => {
+    if (activeConvId) {
+      const a = conversations.find((c) => c.id === activeConvId);
+      if (a && a.unread_count > 0) {
+        markRead(activeConvId);
+      }
+    }
+  }, [activeConvId]);
+
+  // Auto-scroll to bottom on new messages
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages.length]);
+
+  // Close emoji picker on outside click
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(e.target as Node)) {
+        setShowEmojiPicker(false);
+        setReactingToMsgId(null);
+      }
+    };
+    if (showEmojiPicker) document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showEmojiPicker]);
+
+  if (!user) return null;
+
+  const active = conversations.find((c) => c.id === activeConvId);
+  const partner = active?.members.find((m) => m.user.id !== user.id)?.user;
+  const isMuted = active?.members.find((m) => m.user.id === user.id)?.is_muted ?? false;
+  const partnerLastRead = active?.members.find((m) => m.user.id !== user.id)?.last_read_at ?? null;
+
+  const filtered = search.trim()
+    ? conversations.filter((c) => {
+        const q = search.toLowerCase();
+        const name = getOtherName(c, user.id).toLowerCase();
+        const lastMsg = (c.last_message || "").toLowerCase();
+        return name.includes(q) || lastMsg.includes(q);
+      })
+    : conversations;
+
+  const handleSearchUsers = async (q: string) => {
+    setUserSearch(q);
+    if (q.length < 2) { setUserResults([]); return; }
+    setSearching(true);
+    try {
+      const res = await apiClient.get(`/search`, { params: { q } });
+      setUserResults((res.data?.users || []).filter((u: { id: string }) => u.id !== user.id));
+    } catch { setUserResults([]); } finally { setSearching(false); }
+  };
+
+  const handleStartDM = async (userId: string) => {
+    const convId = await createDM(userId);
+    if (convId) { setActiveConvId(convId); setShowNewConv(false); setUserSearch(""); setUserResults([]); }
+  };
+
   const handleSend = () => {
     if (!messageInput.trim()) return;
     if (editingMsg) {
       editMessage(editingMsg.id, messageInput.trim());
       setEditingMsg(null);
     } else {
-      sendMessage(messageInput.trim());
+      sendMessage(messageInput.trim(), "text", undefined, replyingTo?.id);
+      setReplyingTo(null);
     }
     setMessageInput("");
     if (isTypingRef.current && activeConvId) {
@@ -335,23 +416,11 @@ export default function MessagesPage() {
     setShowEmojiPicker(true);
   };
 
-  // Close emoji picker on outside click
-  useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      if (emojiPickerRef.current && !emojiPickerRef.current.contains(e.target as Node)) {
-        setShowEmojiPicker(false);
-        setReactingToMsgId(null);
-      }
-    };
-    if (showEmojiPicker) document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [showEmojiPicker]);
-
   return (
     <LayoutShell hideRightRail>
       <div className="flex h-[calc(100vh-105px)] lg:h-[calc(100vh-52px)]">
         {/* Sidebar */}
-        <div className="w-full shrink-0 border-r border-border flex flex-col sm:w-[320px]">
+        <div className={cn("w-full shrink-0 border-r border-border flex flex-col sm:w-[320px]", mobileShowChat ? "hidden sm:flex" : "flex")}>
           <div className="flex items-center justify-between border-b border-border px-4 py-3">
             <h2 className="text-h3 font-bold">Messages</h2>
             <button onClick={() => setShowNewConv(true)} className="p-2 rounded-lg hover:bg-surface transition-colors text-text-secondary hover:text-accent" aria-label="New conversation">
@@ -375,11 +444,12 @@ export default function MessagesPage() {
             ) : filtered.map((conv) => {
               const otherUser = conv.members?.find((m) => m.user.id !== user.id)?.user;
               const name = getOtherName(conv, user.id);
-              const lastMsg = conv.last_message?.split(": ").slice(1).join(": ") || conv.last_message || "No messages yet";
+              const rawLast = conv.last_message?.split(": ").slice(1).join(": ") || conv.last_message || "No messages yet";
+              const lastMsg = conv.last_sender_id === user.id && conv.last_message ? `You: ${rawLast}` : rawLast;
               const hasUnread = conv.unread_count > 0;
               const muted = conv.members?.find((m) => m.user.id === user.id)?.is_muted ?? false;
               return (
-                <button key={conv.id} onClick={() => setActiveConvId(conv.id)}
+                <button key={conv.id} onClick={() => { setActiveConvId(conv.id); setMobileShowChat(true); }}
                   className={cn("w-full flex items-center gap-3 px-4 py-3 text-left transition-all border-b border-border/50",
                     conv.id === activeConvId ? "bg-surface border-l-2 border-l-accent" : "hover:bg-surface/50 border-l-2 border-l-transparent",
                   )}>
@@ -404,11 +474,14 @@ export default function MessagesPage() {
         </div>
 
         {/* Chat area */}
-        <div className="hidden sm:flex flex-1 flex-col min-w-0">
+        <div className={cn("flex-1 flex-col min-w-0", mobileShowChat ? "flex" : "hidden sm:flex")}>
           {active && partner ? (
             <>
               {/* Chat header */}
               <div className="flex items-center gap-3 border-b border-border px-4 py-3 shrink-0">
+                <button onClick={() => setMobileShowChat(false)} className="p-2 -ml-2 rounded-lg hover:bg-surface transition-colors text-text-secondary lg:hidden">
+                  <ArrowLeft className="h-5 w-5" />
+                </button>
                 <Avatar user={partner} size={36} />
                 <div className="flex-1 min-w-0">
                   <p className="text-body-sm font-bold text-text-primary truncate">{partner.profile?.display_name || partner.email}</p>
@@ -516,6 +589,13 @@ export default function MessagesPage() {
                           onDelete={deleteMessage}
                           onReact={handleReact}
                           onOpenEmojiPicker={handleOpenEmojiPicker}
+                          onReply={(m) => { setReplyingTo(m); setEditingMsg(null); }}
+                          onReport={(id) => setReportMsgId(id)}
+                          seen={
+                            msg.id === lastOwnMsgId &&
+                            !!partnerLastRead &&
+                            new Date(partnerLastRead) >= new Date(msg.created_at)
+                          }
                         />
                       ))}
                     </div>
@@ -540,6 +620,21 @@ export default function MessagesPage() {
                   <div className="flex items-center justify-between mb-2 px-3 py-1.5 bg-surface rounded-lg border border-border">
                     <span className="text-caption text-text-secondary truncate">Editing: {editingMsg.content}</span>
                     <button onClick={() => { setEditingMsg(null); setMessageInput(""); }} className="p-1 rounded hover:bg-background">
+                      <X className="h-3.5 w-3.5 text-text-secondary" />
+                    </button>
+                  </div>
+                )}
+                {replyingTo && !editingMsg && (
+                  <div className="flex items-center justify-between mb-2 px-3 py-1.5 bg-surface rounded-lg border-l-2 border-accent">
+                    <div className="min-w-0">
+                      <span className="block text-[11px] font-semibold text-accent">
+                        Replying to {replyingTo.sender?.profile?.display_name || replyingTo.sender?.email?.split("@")[0]}
+                      </span>
+                      <span className="block text-caption text-text-secondary truncate">
+                        {replyingTo.message_type !== "text" ? "Attachment" : replyingTo.content}
+                      </span>
+                    </div>
+                    <button onClick={() => setReplyingTo(null)} className="p-1 rounded hover:bg-background shrink-0">
                       <X className="h-3.5 w-3.5 text-text-secondary" />
                     </button>
                   </div>
@@ -596,12 +691,12 @@ export default function MessagesPage() {
               <div className="max-h-60 overflow-y-auto">
                 {searching && <div className="flex justify-center py-4"><div className="h-5 w-5 border-2 border-accent border-t-transparent rounded-full animate-spin" /></div>}
                 {!searching && userResults.length === 0 && userSearch.length >= 2 && <p className="text-center text-caption text-text-secondary py-4">No users found</p>}
-                {userResults.map((u: any) => (
+                {userResults.map((u: { id: string; profile?: { display_name?: string; avatar_url?: string | null } | null; email?: string }) => (
                   <button key={u.id} onClick={() => handleStartDM(u.id)} className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-surface transition-colors text-left">
                     <Avatar user={u} size={36} />
                     <div className="min-w-0">
-                      <p className="text-body-sm font-semibold text-text-primary truncate">{u.profile?.display_name || u.email.split("@")[0]}</p>
-                      <p className="text-caption text-text-secondary truncate">{u.email}</p>
+                      <p className="text-body-sm font-semibold text-text-primary truncate">{u.profile?.display_name || u.email?.split("@")[0] || "User"}</p>
+                      <p className="text-caption text-text-secondary truncate">{u.email || ""}</p>
                     </div>
                   </button>
                 ))}
@@ -631,6 +726,22 @@ export default function MessagesPage() {
           </div>
         </div>
       )}
+
+      {reportMsgId && (
+        <ReportModal
+          targetType="message"
+          targetId={reportMsgId}
+          onClose={() => setReportMsgId(null)}
+        />
+      )}
     </LayoutShell>
+  );
+}
+
+export default function MessagesPage() {
+  return (
+    <Suspense fallback={null}>
+      <MessagesPageInner />
+    </Suspense>
   );
 }

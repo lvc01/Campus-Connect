@@ -12,7 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getApiErrorMessage, getApiErrorStatus } from "@/lib/api-error";
 import { toast } from "sonner";
-import { MoreVertical, Shield, ShieldOff, UserMinus, Trash2, Flag } from "lucide-react";
+import { MoreVertical, Shield, ShieldOff, UserMinus, Trash2, Flag, Check, X } from "lucide-react";
+import { Avatar } from "@/components/Avatar";
 import { ReportModal } from "@/components/report-modal";
 import type { PostData } from "@/types/post";
 
@@ -58,7 +59,7 @@ const CATEGORY_MAP: Record<string, { label: string; bg: string; text: string; bo
   political: { label: "Political", bg: "bg-red-500/10", text: "text-red-400", border: "border-red-500/20" },
   religious: { label: "Religious", bg: "bg-amber-500/10", text: "text-amber-400", border: "border-amber-500/20" },
   tech: { label: "Tech", bg: "bg-accent/10", text: "text-accent", border: "border-accent/20" },
-  other: { label: "General", bg: "bg-zinc-500/10", text: "text-text-muted", border: "border-zinc-500/20" },
+  other: { label: "General", bg: "bg-zinc-500/10", text: "text-text-tertiary", border: "border-zinc-500/20" },
 };
 
 export default function ClubHubPage() {
@@ -68,6 +69,7 @@ export default function ClubHubPage() {
 
   const [club, setClub] = useState<ClubData | null>(null);
   const [members, setMembers] = useState<MemberData[]>([]);
+  const [pendingMembers, setPendingMembers] = useState<MemberData[]>([]);
   const [posts, setPosts] = useState<PostData[]>([]);
   
   const [isPageLoading, setIsPageLoading] = useState(true);
@@ -92,25 +94,31 @@ export default function ClubHubPage() {
   const loaderRef = useRef<HTMLDivElement>(null);
 
   const fetchClubDetails = async () => {
-    window.setTimeout(() => setIsPageLoading(true), 0);
+    setIsPageLoading(true);
     try {
       const clubRes = await apiClient.get<ClubData>(`/clubs/${slug}`);
       const clubData = clubRes.data;
-      window.setTimeout(() => {
-        setClub(clubData);
-        setEditDesc(clubData.description || "");
-        setEditLogo(clubData.logo_url || "");
-        setEditBanner(clubData.banner_url || "");
-      }, 0);
+      setClub(clubData);
+      setEditDesc(clubData.description || "");
+      setEditLogo(clubData.logo_url || "");
+      setEditBanner(clubData.banner_url || "");
 
       // Load members
       const membersRes = await apiClient.get<MemberData[]>(`/clubs/${clubData.id}/members`);
-      window.setTimeout(() => setMembers(membersRes.data), 0);
+      setMembers(membersRes.data);
+
+      // Load pending membership requests (owner/admin only)
+      if (clubData.member_role === "owner" || clubData.member_role === "admin") {
+        try {
+          const pendingRes = await apiClient.get<MemberData[]>(`/clubs/${clubData.id}/members/pending`);
+          setPendingMembers(pendingRes.data);
+        } catch { /* non-critical */ }
+      }
 
       // Load club events
       try {
         const eventsRes = await apiClient.get("/events", { params: { club_id: clubData.id, status: "upcoming" } });
-        window.setTimeout(() => setClubEvents(eventsRes.data.slice(0, 3)), 0);
+        setClubEvents(eventsRes.data.slice(0, 3));
       } catch { /* non-critical */ }
 
       // Trigger feed load
@@ -121,16 +129,13 @@ export default function ClubHubPage() {
         router.push("/clubs");
       }
     } finally {
-      window.setTimeout(() => setIsPageLoading(false), 0);
+      setIsPageLoading(false);
     }
   };
 
   const fetchFeed = async (clubId: string, cursor: string | null = null, append = false) => {
-    if (cursor) {
-      window.setTimeout(() => setIsMoreLoading(true), 0);
-    } else {
-      window.setTimeout(() => setIsFeedLoading(true), 0);
-    }
+    if (cursor) setIsMoreLoading(true);
+    else setIsFeedLoading(true);
 
     try {
       const response = await apiClient.get("/posts", {
@@ -143,27 +148,21 @@ export default function ClubHubPage() {
 
       const { items, next_cursor, has_more } = response.data;
 
-      window.setTimeout(() => {
-        if (append) {
-          setPosts((prev) => [...prev, ...items]);
-        } else {
-          setPosts(items);
-        }
-        setNextCursor(next_cursor);
-        setHasMore(has_more);
-      }, 0);
+      if (append) setPosts((prev) => [...prev, ...items]);
+      else setPosts(items);
+      setNextCursor(next_cursor);
+      setHasMore(has_more);
     } catch (err) {
       console.error("Failed to load club feed", err);
     } finally {
-      window.setTimeout(() => {
-        setIsFeedLoading(false);
-        setIsMoreLoading(false);
-      }, 0);
+      setIsFeedLoading(false);
+      setIsMoreLoading(false);
     }
   };
 
   useEffect(() => {
     if (user && slug) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       fetchClubDetails();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -265,6 +264,32 @@ export default function ClubHubPage() {
     }
   };
 
+  const handleApproveMember = async (userId: string) => {
+    if (!club) return;
+    try {
+      await apiClient.post(`/clubs/${club.id}/members/${userId}/approve`);
+      setPendingMembers((prev) => prev.filter((m) => m.user_id !== userId));
+      setClub((prev) => (prev ? { ...prev, member_count: prev.member_count + 1 } : null));
+      // Refresh members so the new member appears in the directory
+      const membersRes = await apiClient.get<MemberData[]>(`/clubs/${club.id}/members`);
+      setMembers(membersRes.data);
+      toast.success("Member approved");
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, "Failed to approve member."));
+    }
+  };
+
+  const handleRejectMember = async (userId: string) => {
+    if (!club) return;
+    try {
+      await apiClient.post(`/clubs/${club.id}/members/${userId}/reject`);
+      setPendingMembers((prev) => prev.filter((m) => m.user_id !== userId));
+      toast.success("Request rejected");
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, "Failed to reject request."));
+    }
+  };
+
   const handleDeleteClub = async () => {
     if (!club) return;
     try {
@@ -293,7 +318,7 @@ export default function ClubHubPage() {
 
   if (loading || isPageLoading || !user) {
     return (
-      <div className="flex-1 flex flex-col justify-center items-center bg-bg-main">
+      <div className="flex-1 flex flex-col justify-center items-center bg-background">
         <svg className="animate-spin h-10 w-10 text-accent" fill="none" viewBox="0 0 24 24">
           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
@@ -304,10 +329,10 @@ export default function ClubHubPage() {
 
   if (!club) {
     return (
-      <div className="flex-1 flex flex-col justify-center items-center bg-bg-main text-text-main p-8 text-center">
-        <h3 className="text-xl font-bold">Society Hub Loading Failed</h3>
-        <p className="text-text-muted text-sm mt-2">The requested university page could not be located.</p>
-        <Link href="/clubs" className="mt-6 text-sm text-accent font-bold hover:underline">
+      <div className="flex-1 flex flex-col justify-center items-center bg-background text-text-primary p-8 text-center">
+        <h3 className="font-display text-h2 font-medium text-text-primary leading-tight">Society Hub Loading Failed</h3>
+        <p className="font-sans text-body-sm text-text-secondary mt-2 leading-relaxed">The requested university page could not be located.</p>
+        <Link href="/clubs" className="mt-6 font-sans text-body-sm text-accent font-semibold hover:underline">
           Return to Clubs directory
         </Link>
       </div>
@@ -322,7 +347,7 @@ export default function ClubHubPage() {
   const catInfo = CATEGORY_MAP[club.category] || CATEGORY_MAP.other;
 
   return (
-    <div className="flex-1 min-h-screen bg-bg-main text-text-main flex flex-col relative">
+    <div className="flex-1 min-h-screen bg-background text-text-primary flex flex-col relative">
       {/* Background radial overlays */}
       <div className="absolute top-[-30%] left-[-10%] w-[800px] h-[800px] rounded-full bg-accent/5 blur-[160px] pointer-events-none" />
       <div className="absolute bottom-[-30%] right-[-10%] w-[800px] h-[800px] rounded-full bg-accent/5 blur-[160px] pointer-events-none" />
@@ -331,10 +356,10 @@ export default function ClubHubPage() {
       <div className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col lg:flex-row gap-8 relative z-10">
         
         {/* Left Sidebar */}
-        <aside className="w-full lg:w-80 shrink-0 flex flex-col gap-6">
+        <aside className="w-full lg:w-80 shrink-0 flex flex-col gap-6 reveal-up stagger-1">
           {/* Logo Header */}
           <Link href="/" className="flex items-center gap-3 px-2 select-none group">
-            <div className="w-10 h-10 rounded-xl bg-accent text-text-inverse flex items-center justify-center shadow-lg shadow-accent/20 group-hover:scale-105 transition-transform">
+            <div className="w-10 h-10 rounded-xl bg-accent text-accent-foreground flex items-center justify-center shadow-md shadow-accent/20 group-hover:scale-105 transition-transform">
               <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
                 <circle cx="9" cy="7" r="4" />
@@ -343,16 +368,16 @@ export default function ClubHubPage() {
               </svg>
             </div>
             <div>
-              <span className="text-sm font-black tracking-wider text-accent block">CU CAMPUS</span>
-              <span className="text-[10px] font-black tracking-widest text-text-muted block -mt-1">CONNECT</span>
+              <span className="font-display text-body-sm font-medium tracking-[0.08em] text-accent block">CU CAMPUS</span>
+              <span className="font-sans text-overline tracking-[0.18em] font-medium text-text-tertiary block -mt-0.5">CONNECT</span>
             </div>
           </Link>
 
           {/* Navigation mini-menu */}
-          <div className="bg-bg-surface border border-border rounded-2xl p-4 flex flex-col gap-1 select-none">
+          <div className="bg-surface border border-border-strong rounded-2xl p-4 flex flex-col gap-1 select-none">
             <Link
               href="/"
-              className="flex items-center gap-3 px-4 py-3 text-sm font-bold text-text-muted hover:text-text-main rounded-xl hover:bg-[rgba(var(--bg-hover),0.08)] transition-colors"
+              className="flex items-center gap-3 px-4 py-3 font-sans text-body-sm font-medium text-text-tertiary hover:text-text-primary rounded-xl hover:bg-surface/60 transition-colors"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
@@ -362,7 +387,7 @@ export default function ClubHubPage() {
             </Link>
             <Link
               href="/clubs"
-              className="flex items-center gap-3 px-4 py-3 text-sm font-bold text-text-muted hover:text-text-main rounded-xl hover:bg-[rgba(var(--bg-hover),0.08)] transition-colors"
+              className="flex items-center gap-3 px-4 py-3 font-sans text-body-sm font-medium text-text-tertiary hover:text-text-primary rounded-xl hover:bg-surface/60 transition-colors"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -374,7 +399,7 @@ export default function ClubHubPage() {
             </Link>
             <Link
               href="/clubs"
-              className="flex items-center gap-2 mt-2 pt-2.5 border-t border-border text-xs font-bold text-accent hover:text-accent"
+              className="flex items-center gap-2 mt-2 pt-2.5 border-t border-border-strong font-sans text-body-sm font-medium text-accent hover:text-accent"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <line x1="19" y1="12" x2="5" y2="12"></line>
@@ -385,14 +410,14 @@ export default function ClubHubPage() {
           </div>
 
           {/* Student mini-card */}
-          <div className="bg-bg-surface border border-border rounded-2xl p-6 flex flex-col items-center text-center">
+          <div className="bg-surface border border-border-strong rounded-2xl p-6 flex flex-col items-center text-center">
             <div className="w-20 h-20 rounded-xl bg-accent flex items-center justify-center shadow-md">
-              <span className="text-3xl font-bold text-text-inverse select-none">
+              <span className="font-display text-h1 text-accent-foreground font-medium select-none">
                 {getInitials(user?.profile?.display_name || "")}
               </span>
             </div>
-            <h2 className="text-lg font-bold text-text-main mt-4">{user?.profile?.display_name}</h2>
-            <p className="text-text-muted text-xs font-semibold mt-0.5">{user?.email}</p>
+            <h2 className="font-display text-h2 font-medium text-text-primary mt-4">{user?.profile?.display_name}</h2>
+            <p className="font-sans text-caption font-medium text-text-tertiary mt-0.5">{user?.email}</p>
           </div>
 
           <div className="hidden lg:block mt-auto">
@@ -406,7 +431,7 @@ export default function ClubHubPage() {
         <main className="flex-1 flex flex-col gap-6 min-w-0">
           
           {/* Banner Container */}
-          <div className="w-full h-44 sm:h-56 rounded-3xl overflow-hidden border border-border bg-bg-main relative shadow-xl select-none shrink-0">
+          <div className="w-full h-44 sm:h-56 rounded-3xl overflow-hidden border border-border-strong bg-background relative shadow-sm select-none shrink-0 reveal-up stagger-2">
             {club.banner_url ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -429,7 +454,7 @@ export default function ClubHubPage() {
               <button
                 type="button"
                 onClick={() => setIsEditOpen(true)}
-                className="absolute right-4 top-4 px-3.5 py-2 rounded-xl bg-black/60 backdrop-blur-md border border-border hover:bg-black/80 text-xs font-extrabold text-text-main flex items-center gap-1.5 transition-all"
+                className="absolute right-4 top-4 px-3.5 py-2 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 hover:bg-black/80 font-sans text-caption font-semibold text-white flex items-center gap-1.5 transition-all"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
@@ -441,21 +466,21 @@ export default function ClubHubPage() {
           </div>
 
           {/* Identity Header row */}
-          <div className="flex flex-col sm:flex-row justify-between items-start gap-4 -mt-3 select-none">
+          <div className="flex flex-col sm:flex-row justify-between items-start gap-4 -mt-3 select-none reveal-up stagger-3">
             <div className="flex gap-4 items-start">
               {club.logo_url ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={club.logo_url}
                   alt={`${club.name} logo`}
-                  className="w-16 h-16 rounded-2xl object-cover border-2 border-bg-main bg-bg-surface -mt-8 shadow-xl relative z-10 shrink-0"
+                  className="w-16 h-16 rounded-2xl object-cover border-2 border-background bg-surface -mt-8 shadow-sm relative z-10 shrink-0"
                   onError={(e) => {
                     (e.target as HTMLElement).style.display = "none";
                   }}
                 />
               ) : (
-                <div className="w-16 h-16 rounded-2xl bg-bg-surface border-2 border-bg-main flex items-center justify-center shrink-0 -mt-8 shadow-xl relative z-10">
-                  <span className="text-text-muted font-black text-xl">
+                <div className="w-16 h-16 rounded-2xl bg-surface border-2 border-background flex items-center justify-center shrink-0 -mt-8 shadow-sm relative z-10">
+                  <span className="font-display text-h2 text-text-tertiary font-medium">
                     {club.name.substring(0, 2).toUpperCase()}
                   </span>
                 </div>
@@ -463,7 +488,7 @@ export default function ClubHubPage() {
 
               <div>
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  <h1 className="text-xl sm:text-2xl font-black text-text-main">{club.name}</h1>
+                  <h1 className="font-display text-h1 font-medium text-text-primary leading-tight">{club.name}</h1>
                   
                   {club.is_verified && (
                     <svg
@@ -480,17 +505,17 @@ export default function ClubHubPage() {
                     </svg>
                   )}
                   {club.is_premium && (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-accent/10 text-accent border border-accent/20 shrink-0 select-none">
+                    <span className="font-sans text-overline font-semibold px-2 py-0.5 rounded-full bg-accent/10 text-accent border border-accent/20 shrink-0 select-none">
                       PREMIUM
                     </span>
                   )}
                 </div>
 
                 <div className="flex items-center gap-3 mt-1.5">
-                  <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase ${catInfo.bg} ${catInfo.text} border ${catInfo.border}`}>
+                  <span className={`px-2 py-0.5 rounded-md font-sans text-overline font-semibold uppercase ${catInfo.bg} ${catInfo.text} border ${catInfo.border}`}>
                     {catInfo.label}
                   </span>
-                  <span className="text-xs font-bold text-text-muted">
+                  <span className="font-sans text-caption font-medium text-text-tertiary">
                     {club.member_count} {club.member_count === 1 ? "Member" : "Members"}
                   </span>
                 </div>
@@ -498,7 +523,7 @@ export default function ClubHubPage() {
             </div>
 
             {club.member_role === "owner" ? (
-              <span className="text-[10px] font-black uppercase tracking-widest text-accent px-4 py-2 bg-accent/10 border border-accent/20 rounded-xl">
+              <span className="font-sans text-overline font-semibold uppercase tracking-widest text-accent px-4 py-2 bg-accent/10 border border-accent/20 rounded-xl">
                 Society Owner
               </span>
             ) : (
@@ -516,7 +541,7 @@ export default function ClubHubPage() {
           {!club.is_member && club.member_role !== "owner" && (
             <button
               onClick={() => setShowReport(true)}
-              className="flex items-center gap-1.5 text-xs font-semibold text-text-secondary hover:text-like transition-colors mt-1"
+              className="flex items-center gap-1.5 font-sans text-caption font-semibold text-text-secondary hover:text-like transition-colors mt-1"
             >
               <Flag className="h-3.5 w-3.5" />
               Report Society
@@ -524,36 +549,36 @@ export default function ClubHubPage() {
           )}
 
           {/* Description */}
-          <div className="bg-bg-surface border border-border rounded-2xl p-5 select-none shrink-0">
-            <h3 className="text-xs font-bold text-text-muted uppercase tracking-widest">ABOUT THIS SOCIETY</h3>
-            <p className="text-sm text-text-main mt-2 leading-relaxed font-medium">
+          <div className="bg-surface border border-border-strong rounded-2xl p-5 select-none shrink-0 reveal-up stagger-4">
+            <h3 className="font-sans text-overline font-semibold text-text-tertiary uppercase tracking-[0.12em]">About this society</h3>
+            <p className="font-sans text-body-sm text-text-primary mt-2 leading-relaxed">
               {club.description || "Official university society hub, encouraging academic research, recreational engagement, and professional training."}
             </p>
           </div>
 
           {/* Two-Column Workspace Feed vs Members */}
-          <div className="w-full flex flex-col md:flex-row gap-6 items-start">
+          <div className="w-full flex flex-col md:flex-row gap-6 items-start reveal-up stagger-5">
             
             {/* Column 1: Society Social Stream */}
             <section className="flex-1 w-full flex flex-col gap-6 order-2 md:order-1">
               
-              <div className="border-b border-border pb-2 flex items-center justify-between select-none">
-                <h2 className="text-base font-black text-text-main uppercase tracking-wider">Society Feed</h2>
-                <span className="text-[10px] font-bold text-text-muted">
+              <div className="border-b border-border-strong pb-2 flex items-center justify-between select-none">
+                <h2 className="font-display text-h2 font-medium text-text-primary">Society Feed</h2>
+                <span className="font-sans text-caption font-medium text-text-tertiary">
                   {posts.length} {posts.length === 1 ? "Update" : "Updates"}
                 </span>
               </div>
 
               {/* Feed Gated Notice if not member */}
               {!club.is_member ? (
-                <div className="bg-bg-surface border border-border rounded-2xl p-6 text-center select-none bg-zinc-900/30">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-text-muted mx-auto mb-3">
+                <div className="bg-surface border border-border-strong rounded-2xl p-6 text-center select-none">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-text-tertiary mx-auto mb-3">
                     <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
                     <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
                   </svg>
-                  <h4 className="text-sm font-bold text-text-muted">Feed is view-only</h4>
-                  <p className="text-xs text-text-muted mt-1 max-w-xs mx-auto leading-relaxed">
-                    You must join the <strong>{club.name}</strong> to publish discussions, share advice, or interact with other members on this page.
+                  <h4 className="font-display text-body-sm font-medium text-text-tertiary">Feed is view-only</h4>
+                  <p className="font-sans text-caption text-text-tertiary mt-1 max-w-xs mx-auto leading-relaxed">
+                    You must join the <strong className="text-text-primary">{club.name}</strong> to publish discussions, share advice, or interact with other members on this page.
                   </p>
                 </div>
               ) : (
@@ -564,22 +589,22 @@ export default function ClubHubPage() {
               {isFeedLoading ? (
                 <div className="space-y-6 animate-pulse">
                   {[1, 2].map((i) => (
-                    <div key={i} className="bg-bg-surface border border-border rounded-2xl p-6 h-48 flex flex-col gap-4">
+                    <div key={i} className="bg-surface border border-border-strong rounded-2xl p-6 h-48 flex flex-col gap-4">
                       <div className="flex gap-3 items-center">
-                        <div className="w-11 h-11 bg-bg-surface rounded-xl" />
+                        <div className="w-11 h-11 bg-border-strong rounded-xl" />
                         <div className="space-y-2 flex-1">
-                          <div className="h-4 bg-bg-surface rounded w-1/4" />
-                          <div className="h-3 bg-bg-surface rounded w-1/6" />
+                          <div className="h-4 bg-border-strong rounded w-1/4" />
+                          <div className="h-3 bg-border-strong rounded w-1/6" />
                         </div>
                       </div>
-                      <div className="h-4 bg-bg-surface rounded w-full mt-2" />
+                      <div className="h-4 bg-border-strong rounded w-full mt-2" />
                     </div>
                   ))}
                 </div>
               ) : posts.length === 0 ? (
-                <div className="bg-bg-surface border border-border rounded-2xl p-12 text-center select-none">
-                  <h3 className="text-base font-bold text-text-muted">No posts in society hub yet</h3>
-                  <p className="text-xs text-text-muted mt-1 max-w-xs mx-auto leading-relaxed">
+                <div className="bg-surface border border-border-strong rounded-2xl p-12 text-center select-none">
+                  <h3 className="font-display text-h2 font-medium text-text-tertiary">No posts in society hub yet</h3>
+                  <p className="font-sans text-caption text-text-tertiary mt-1 max-w-xs mx-auto leading-relaxed">
                     {club.is_member
                       ? "Start the conversation! Be the first member to share tips, announce an event, or chat here."
                       : "Feed is quiet. Once members join, active updates and announcements will populate this stream."}
@@ -606,12 +631,54 @@ export default function ClubHubPage() {
 
             {/* Column 2: Members list side directory (Takes 1/3 width) */}
             <section className="w-full md:w-80 shrink-0 flex flex-col gap-6 order-1 md:order-2">
-              
-              <div className="border-b border-border pb-2 select-none">
-                <h2 className="text-base font-black text-text-main uppercase tracking-wider">Members directory</h2>
+
+              {/* Pending membership requests (owner/admin only) */}
+              {isManagementAllowed && pendingMembers.length > 0 && (
+                <div className="flex flex-col gap-3">
+                  <div className="border-b border-border-strong pb-2 select-none flex items-center gap-2">
+                    <h2 className="font-display text-body-sm font-medium text-text-primary">Pending requests</h2>
+                    <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1.5 font-sans text-overline font-semibold text-accent-foreground">
+                      {pendingMembers.length}
+                    </span>
+                  </div>
+                  <div className="bg-surface border border-border-strong rounded-2xl p-4 flex flex-col gap-3">
+                    {pendingMembers.map((member) => {
+                      const prof = member.user?.profile;
+                      const display = prof?.display_name || member.user?.email.split("@")[0];
+                      return (
+                        <div key={member.id} className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <Avatar user={{ id: member.user_id, display_name: display, email: member.user?.email, profile: { avatar_url: prof?.avatar_url } }} size={32} />
+                            <span className="font-sans text-body-sm font-medium text-text-primary truncate">{display}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <button
+                              onClick={() => handleApproveMember(member.user_id)}
+                              aria-label="Approve"
+                              className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 transition-colors"
+                            >
+                              <Check className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => handleRejectMember(member.user_id)}
+                              aria-label="Reject"
+                              className="flex h-7 w-7 items-center justify-center rounded-full bg-like/10 text-like hover:bg-like/20 transition-colors"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              <div className="border-b border-border-strong pb-2 select-none">
+                <h2 className="font-display text-body-sm font-medium text-text-primary">Members directory</h2>
               </div>
 
-              <div className="bg-bg-surface border border-border rounded-2xl p-4 flex flex-col gap-4 max-h-[420px] overflow-y-auto">
+              <div className="bg-surface border border-border-strong rounded-2xl p-4 flex flex-col gap-4 max-h-[420px] overflow-y-auto">
                 {members.map((member) => {
                   const prof = member.user?.profile;
                   const display = prof?.display_name || member.user?.email.split("@")[0].toUpperCase();
@@ -621,15 +688,15 @@ export default function ClubHubPage() {
                     <div key={member.id} className="flex items-center justify-between gap-3 relative">
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center shrink-0">
-                          <span className="text-sm font-bold text-text-inverse">
+                          <span className="font-sans text-body-sm font-semibold text-accent-foreground">
                             {getInitials(display)}
                           </span>
                         </div>
                         <div className="min-w-0">
-                          <span className="text-sm font-bold text-text-main truncate block">
+                          <span className="font-sans text-body-sm font-medium text-text-primary truncate block">
                             {display}
                           </span>
-                          <span className="text-[10px] text-text-muted truncate block -mt-0.5">
+                          <span className="font-sans text-caption text-text-tertiary truncate block -mt-0.5">
                             {prof?.faculty || "General Student"}
                           </span>
                         </div>
@@ -637,17 +704,17 @@ export default function ClubHubPage() {
 
                       <div className="flex items-center gap-2">
                         {member.role === "owner" && (
-                          <span className="px-2 py-0.5 rounded bg-accent/10 border border-accent/20 text-accent text-[8px] font-black uppercase select-none">
+                          <span className="px-2 py-0.5 rounded bg-accent/10 border border-accent/20 text-accent font-sans text-overline font-semibold uppercase select-none">
                             Owner
                           </span>
                         )}
                         {member.role === "admin" && (
-                          <span className="px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[8px] font-black uppercase select-none">
+                          <span className="px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-amber-400 font-sans text-overline font-semibold uppercase select-none">
                             Admin
                           </span>
                         )}
                         {member.role === "member" && (
-                          <span className="text-[8px] font-bold text-text-muted uppercase select-none">
+                          <span className="font-sans text-overline font-medium text-text-tertiary uppercase select-none">
                             Member
                           </span>
                         )}
@@ -656,16 +723,16 @@ export default function ClubHubPage() {
                           <div className="relative">
                             <button
                               onClick={() => setMemberMenuOpen(memberMenuOpen === member.user_id ? null : member.user_id)}
-                              className="p-1 rounded hover:bg-[rgba(var(--bg-hover),0.08)] text-text-muted transition-colors"
+                              className="p-1 rounded hover:bg-[rgba(var(--bg-hover),0.08)] text-text-tertiary transition-colors"
                             >
                               <MoreVertical className="h-3.5 w-3.5" />
                             </button>
                             {memberMenuOpen === member.user_id && (
-                              <div className="absolute right-0 top-full mt-1 z-50 bg-bg-surface border border-border rounded-xl shadow-lg py-1 min-w-[160px] animate-fade-in">
+                              <div className="absolute right-0 top-full mt-1 z-50 bg-surface border border-border rounded-xl shadow-lg py-1 min-w-[160px] animate-fade-in">
                                 {member.role === "member" && (
                                   <button
                                     onClick={() => handleUpdateMemberRole(member.user_id, "admin")}
-                                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-text-main hover:bg-[rgba(var(--bg-hover),0.08)] transition-colors"
+                                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-text-primary hover:bg-[rgba(var(--bg-hover),0.08)] transition-colors"
                                   >
                                     <Shield className="h-3.5 w-3.5 text-amber-400" />
                                     Promote to Admin
@@ -674,9 +741,9 @@ export default function ClubHubPage() {
                                 {member.role === "admin" && (
                                   <button
                                     onClick={() => handleUpdateMemberRole(member.user_id, "member")}
-                                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-text-main hover:bg-[rgba(var(--bg-hover),0.08)] transition-colors"
+                                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-text-primary hover:bg-[rgba(var(--bg-hover),0.08)] transition-colors"
                                   >
-                                    <ShieldOff className="h-3.5 w-3.5 text-text-muted" />
+                                    <ShieldOff className="h-3.5 w-3.5 text-text-tertiary" />
                                     Demote to Member
                                   </button>
                                 )}
@@ -700,23 +767,23 @@ export default function ClubHubPage() {
               {/* Club Events */}
               {clubEvents.length > 0 && (
                 <div>
-                  <div className="border-b border-border pb-2 mb-4 select-none">
-                    <h2 className="text-base font-black text-text-main uppercase tracking-wider">Upcoming Events</h2>
+                  <div className="border-b border-border-strong pb-2 mb-4 select-none">
+                    <h2 className="font-display text-body-sm font-medium text-text-primary">Upcoming Events</h2>
                   </div>
-                  <div className="bg-bg-surface border border-border rounded-xl p-4 flex flex-col gap-3">
+                  <div className="bg-surface border border-border-strong rounded-xl p-4 flex flex-col gap-3">
                     {clubEvents.map((event) => (
                       <Link
                         key={event.id}
                         href={`/events/${event.id}`}
-                        className="flex flex-col gap-1 p-2.5 rounded-lg hover:bg-[rgba(var(--bg-hover),0.08)] transition-colors duration-200"
+                        className="flex flex-col gap-1 p-2.5 rounded-lg hover:bg-surface/60 transition-colors duration-200"
                       >
-                        <p className="text-sm font-semibold text-text-main leading-snug line-clamp-1">
+                        <p className="font-sans text-body-sm font-medium text-text-primary leading-snug line-clamp-1">
                           {event.title}
                         </p>
-                        <div className="flex items-center gap-3 text-[11px] font-medium text-text-muted">
+                        <div className="flex items-center gap-3 font-sans text-caption text-text-tertiary">
                           <span>{new Date(event.start_time).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</span>
                           {event.location && <span className="truncate">{event.location}</span>}
-                          <span className="text-accent font-semibold">
+                          <span className="text-accent font-medium">
                             {event.rsvp_count}/{event.rsvp_limit || "∞"}
                           </span>
                         </div>
@@ -733,12 +800,12 @@ export default function ClubHubPage() {
       {/* Edit Hub Modal Overlay */}
       {isEditOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-fade-in">
-          <div className="w-full max-w-lg bg-bg-surface border border-border rounded-3xl p-6 sm:p-8 animate-pop-in relative shadow-2xl overflow-y-auto max-h-[90vh]">
+          <div className="w-full max-w-lg bg-surface border border-border-strong rounded-3xl p-6 sm:p-8 animate-pop-in relative shadow-2xl overflow-y-auto max-h-[90vh]">
             {/* Close Button */}
             <button
               type="button"
               onClick={() => setIsEditOpen(false)}
-              className="absolute right-6 top-6 p-2 rounded-xl text-text-muted hover:text-text-main hover:bg-[rgba(var(--bg-hover),0.08)] focus:outline-none transition-colors"
+              className="absolute right-6 top-6 p-2 rounded-xl text-text-tertiary hover:text-text-primary hover:bg-surface/60 focus:outline-none transition-colors"
               aria-label="Close edit modal"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -748,9 +815,9 @@ export default function ClubHubPage() {
             </button>
 
             <div className="mb-6">
-              <h2 className="text-xl font-bold tracking-tight text-text-main">Edit Society Hub</h2>
-              <p className="text-text-muted text-xs mt-1.5">
-                Customize banners, logos, and descriptions for <strong>{club.name}</strong>.
+              <h2 className="font-display text-h2 font-medium text-text-primary">Edit Society Hub</h2>
+              <p className="font-sans text-caption text-text-tertiary mt-1.5 leading-relaxed">
+                Customize banners, logos, and descriptions for <strong className="text-text-primary">{club.name}</strong>.
               </p>
             </div>
 
@@ -787,7 +854,7 @@ export default function ClubHubPage() {
               <div className="flex flex-col gap-2">
                 <label
                   htmlFor="edit-description"
-                  className="text-sm font-semibold text-text-main cursor-pointer"
+                  className="text-sm font-semibold text-text-primary cursor-pointer"
                 >
                   Description
                 </label>
@@ -796,7 +863,7 @@ export default function ClubHubPage() {
                   placeholder="What is your society about? Meeting schedules, mission details..."
                   value={editDesc}
                   onChange={(e) => setEditDesc(e.target.value)}
-                  className="w-full min-h-[120px] p-4 rounded-xl bg-bg-surface border border-border focus:border-accent focus:ring-4 focus:ring-accent/20 text-text-main font-medium text-sm placeholder-zinc-600 transition-all duration-200 outline-none resize-none"
+                  className="w-full min-h-[120px] p-4 rounded-xl bg-surface border border-border-strong focus:border-accent focus:ring-4 focus:ring-accent/20 text-text-primary font-sans text-body-sm leading-relaxed placeholder:text-text-tertiary transition-all duration-200 outline-none resize-none"
                   maxLength={2000}
                 />
               </div>
@@ -818,14 +885,14 @@ export default function ClubHubPage() {
 
             {/* Danger Zone - Delete Club (Owner only) */}
             {club.member_role === "owner" && (
-              <div className="mt-6 pt-5 border-t border-border">
-                <h4 className="text-xs font-bold text-red-400 uppercase tracking-widest mb-2">Danger Zone</h4>
-                <p className="text-xs text-text-muted mb-3">Permanently delete this club. This action cannot be undone.</p>
+              <div className="mt-6 pt-5 border-t border-border-strong">
+                <h4 className="font-sans text-overline font-semibold text-error uppercase tracking-[0.12em] mb-2">Danger Zone</h4>
+                <p className="font-sans text-caption text-text-tertiary mb-3">Permanently delete this club. This action cannot be undone.</p>
                 <Button
                   type="button"
                   variant="destructive"
                   onClick={() => setDeleteConfirmOpen(true)}
-                  className="bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20"
+                  className="bg-error/10 border border-error/20 text-error hover:bg-error/20"
                 >
                   <Trash2 className="h-4 w-4 mr-1.5" />
                   Delete Club
@@ -839,24 +906,24 @@ export default function ClubHubPage() {
       {/* Delete Confirmation Dialog */}
       {deleteConfirmOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-fade-in">
-          <div className="w-full max-w-sm bg-bg-surface border border-border rounded-2xl p-6 shadow-2xl">
+          <div className="w-full max-w-sm bg-surface border border-border-strong rounded-2xl p-6 shadow-lg">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center">
-                <Trash2 className="h-5 w-5 text-red-400" />
+              <div className="w-10 h-10 rounded-xl bg-error/10 flex items-center justify-center">
+                <Trash2 className="h-5 w-5 text-error" />
               </div>
               <div>
-                <h3 className="text-sm font-bold text-text-main">Delete Club</h3>
-                <p className="text-xs text-text-muted">This cannot be undone.</p>
+                <h3 className="font-display text-h2 font-medium text-text-primary">Delete Club</h3>
+                <p className="font-sans text-caption text-text-tertiary">This cannot be undone.</p>
               </div>
             </div>
-            <p className="text-xs text-text-muted mb-4">
-              Are you sure you want to permanently delete <strong>{club?.name}</strong>? All posts, members, and data will be lost.
+            <p className="font-sans text-caption text-text-tertiary mb-4 leading-relaxed">
+              Are you sure you want to permanently delete <strong className="text-text-primary">{club?.name}</strong>? All posts, members, and data will be lost.
             </p>
             <div className="flex gap-3 justify-end">
               <Button variant="secondary" onClick={() => setDeleteConfirmOpen(false)}>
                 Cancel
               </Button>
-              <Button onClick={handleDeleteClub} className="bg-red-500 text-white hover:bg-red-600">
+              <Button onClick={handleDeleteClub} className="bg-error text-white hover:bg-error/90">
                 Delete
               </Button>
             </div>

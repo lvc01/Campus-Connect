@@ -23,8 +23,9 @@ export default function AdminPage() {
   const isAdmin = user?.role === "admin" || user?.role === "university_staff";
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setLoading(false);
     if (!user || !isAdmin) {
-      setLoading(false);
       return;
     }
     apiClient.get("/admin/stats").then((res) => {
@@ -59,7 +60,7 @@ export default function AdminPage() {
           {stats.length > 0 && (
             <div className="grid grid-cols-2 gap-3">
               {stats.map((s) => (
-                <div key={s.label} className="rounded-xl border border-border bg-card p-4">
+                <div key={s.label} className="rounded-xl border border-border bg-surface p-4">
                   <p className="text-xs text-text-secondary">{s.label}</p>
                   <p className="text-xl font-bold text-text-primary">{s.value}</p>
                   <p className="text-xs text-emerald-400">{s.change}</p>
@@ -69,7 +70,7 @@ export default function AdminPage() {
           )}
 
           <Link href="/moderation" className="block">
-            <div className="rounded-xl border border-border bg-card p-5 hover:bg-surface transition-colors group cursor-pointer">
+            <div className="rounded-xl border border-border bg-surface p-5 hover:bg-surface transition-colors group cursor-pointer">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
@@ -80,7 +81,7 @@ export default function AdminPage() {
                     <p className="text-xs text-text-secondary">Review reports, resolve issues, manage content</p>
                   </div>
                 </div>
-                <ArrowRight className="h-4 w-4 text-text-muted group-hover:text-accent transition-colors" />
+                <ArrowRight className="h-4 w-4 text-text-tertiary group-hover:text-accent transition-colors" />
               </div>
             </div>
           </Link>

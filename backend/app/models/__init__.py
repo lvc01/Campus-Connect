@@ -6,7 +6,7 @@ can discover them via ``Base.metadata``.
 from app.core.database import Base  # noqa: F401
 
 # Identity
-from app.models.user import OTPCode, OTPPurpose, Profile, RefreshToken, User, UserRole  # noqa: F401
+from app.models.user import OTPCode, OTPPurpose, Profile, RefreshToken, User, UserRole, UserSettings  # noqa: F401
 
 # Social feed
 from app.models.post import Comment, Like, MediaType, PollOption, PollVote, Post, PostMedia, PostType, PostVisibility, Save  # noqa: F401

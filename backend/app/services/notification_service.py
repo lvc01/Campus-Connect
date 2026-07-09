@@ -131,8 +131,25 @@ class NotificationService:
             .where(Notification.id == notification.id)
         )
         notification = result.scalar_one()
-        # Best-effort real-time push; never blocks the DB write.
+        # Best-effort real-time WS push; never blocks the DB write.
         await _push_notification(notification)
+
+        # Best-effort mobile push notification via Expo. Enqueued as a
+        # background job so the request path isn't blocked on the Expo API
+        # call; if the worker/Redis is unavailable the job is a no-op.
+        try:
+            from app.worker.enqueue import enqueue_job
+
+            await enqueue_job(
+                "send_notification_job",
+                user_id=str(user_id),
+                title=title,
+                body=body or "",
+                url=(data or {}).get("url"),
+            )
+        except Exception as exc:
+            logger.warning("Failed to enqueue push for notification %s: %s", notification.id, exc)
+
         return notification
 
 

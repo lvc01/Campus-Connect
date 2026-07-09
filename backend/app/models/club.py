@@ -36,6 +36,14 @@ class ClubMemberRole(str, enum.Enum):
     owner = "owner"
 
 
+class ClubMemberStatus(str, enum.Enum):
+    """Status of a club membership request."""
+
+    pending = "pending"
+    approved = "approved"
+    rejected = "rejected"
+
+
 class ClubCategory(str, enum.Enum):
     """High-level categories for club discovery and filtering."""
 
@@ -75,6 +83,7 @@ class Club(Base, TimestampMixin, SoftDeleteMixin):
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False)
     is_approved: Mapped[bool] = mapped_column(Boolean, default=False)
     is_premium: Mapped[bool] = mapped_column(Boolean, default=False)
+    requires_approval: Mapped[bool] = mapped_column(Boolean, default=False)
     member_count: Mapped[int] = mapped_column(Integer, default=0)
     created_by: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), nullable=False,
@@ -115,11 +124,15 @@ class ClubMember(Base, TimestampMixin):
         ForeignKey("clubs.id", ondelete="CASCADE"), nullable=False,
     )
     user_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"), nullable=False,
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True,
     )
     role: Mapped[ClubMemberRole] = mapped_column(
         SAEnum(ClubMemberRole, name="club_member_role", create_constraint=True),
         default=ClubMemberRole.member,
+    )
+    status: Mapped[ClubMemberStatus] = mapped_column(
+        SAEnum(ClubMemberStatus, name="club_member_status", create_constraint=True),
+        default=ClubMemberStatus.approved,
     )
     joined_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(),

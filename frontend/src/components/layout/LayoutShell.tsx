@@ -1,7 +1,8 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Sparkles } from "lucide-react";
+import Image from "next/image";
+import { Loader2 } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import { LeftRail } from "./LeftRail";
 import { RightRail } from "./RightRail";
@@ -16,7 +17,7 @@ export function LayoutShell({ children, hideRightRail }: { children: ReactNode; 
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
-        <Sparkles className="h-10 w-10 animate-pulse text-accent" />
+        <Loader2 className="h-10 w-10 animate-spin text-accent" />
       </div>
     );
   }
@@ -25,8 +26,14 @@ export function LayoutShell({ children, hideRightRail }: { children: ReactNode; 
     return (
       <div className="flex min-h-screen items-center justify-center bg-background px-4">
         <div className="w-full max-w-sm rounded-xl border border-border bg-card p-8 text-center shadow-sm">
-          <span className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-accent text-accent-foreground">
-            <Sparkles className="h-7 w-7" />
+          <span className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-accent overflow-hidden">
+            <Image
+              src="/logo-white.png"
+              alt="Campus Connect"
+              width={56}
+              height={56}
+              className="object-contain"
+            />
           </span>
           <h1 className="text-h1 font-bold text-text-primary">Campus Connect</h1>
           <p className="mt-2 text-body-sm text-text-secondary">
@@ -46,9 +53,9 @@ export function LayoutShell({ children, hideRightRail }: { children: ReactNode; 
   return (
     <div className="min-h-screen bg-background">
       <MobileTopBar />
-      <div className={`mx-auto grid w-full max-w-[1320px] grid-cols-1 gap-5 px-0 lg:w-fit lg:px-6 ${hideRightRail ? 'lg:grid-cols-[60px_890px] xl:grid-cols-[240px_940px]' : 'lg:grid-cols-[60px_580px_290px] xl:grid-cols-[240px_580px_340px]'}`}>
+      <div className={`mx-auto grid w-full max-w-[1320px] grid-cols-1 gap-5 px-0 md:px-4 lg:w-fit lg:px-6 ${hideRightRail ? 'md:grid-cols-[60px_1fr] lg:grid-cols-[60px_890px] xl:grid-cols-[240px_940px]' : 'md:grid-cols-[60px_1fr] lg:grid-cols-[60px_580px_290px] xl:grid-cols-[240px_580px_340px]'}`}>
         <LeftRail />
-        <main className="min-h-screen w-full border-x border-border pb-20 lg:pb-0">
+        <main className="min-h-screen w-full border-x border-border pb-24 md:pb-20 lg:pb-0">
           {children}
         </main>
         {!hideRightRail && <RightRail />}

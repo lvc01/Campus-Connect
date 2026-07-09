@@ -23,7 +23,7 @@ export const FeedHeader: React.FC<FeedHeaderProps> = ({
   className,
 }) => {
   return (
-    <div className={cn("sticky top-[53px] lg:top-0 z-30 bg-bg/85 backdrop-blur-xl", className)}>
+    <div className={cn("sticky top-[53px] lg:top-0 z-30 bg-background/85 backdrop-blur-xl", className)}>
       <FeedTabs active={active} onChange={onChange} facultyLabel={facultyLabel} />
     </div>
   );
