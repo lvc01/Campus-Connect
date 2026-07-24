@@ -10,7 +10,10 @@ import asyncio
 import sys
 from pathlib import Path
 
-# Make the seed module importable.
+# Add the backend/ root so `import app...` resolves when this script is
+# invoked with CWD != backend/ (e.g. from Render's startCommand).
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+# Add the scripts/ dir so we can import the sibling seed.py module.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import seed as seed_module  # type: ignore  [noqa]

@@ -15,6 +15,14 @@ Idempotent: safe to run multiple times.
 from __future__ import annotations
 
 import asyncio
+import sys
+from pathlib import Path
+
+# The project root must be importable regardless of CWD — when invoked as
+# `python scripts/create_all_schema.py` from anywhere, Python only puts
+# the *script's* directory on sys.path, so ``import app.*`` fails. Add
+# the backend/ root explicitly.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from alembic.config import Config as AlembicConfig
 from sqlalchemy import inspect, text
