@@ -25,6 +25,7 @@ services:
     startCommand: >
       bash -lc "
       python scripts/create_all_schema.py &&
+      python scripts/seed_prod.py &&
       uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips='*' --workers 2
       "
     healthCheckPath: /api/v1/health/ping
@@ -37,7 +38,7 @@ services:
       - key: APP_NAME
         value: CU Campus Connect
       - key: ALLOWED_EMAIL_DOMAINS
-        value: cuhd.in,cumail.in,cubedchd.in
+        value: cuhd.in
       - key: JWT_ACCESS_SECRET
         sync: false
       - key: JWT_REFRESH_SECRET
