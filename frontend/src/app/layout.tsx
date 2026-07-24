@@ -7,6 +7,7 @@ import { NotificationProvider } from "@/context/notification-context";
 import { ChatProvider } from "@/context/chat-context";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { ThemeInitScript } from "@/components/theme-init-script";
+import { PWAInit } from "@/components/PWAInit";
 import "./globals.css";
 
 const fraunces = Fraunces({
@@ -34,6 +35,16 @@ export const metadata: Metadata = {
   openGraph: {
     images: [{ url: "/icon.png", width: 512, height: 512 }],
   },
+  manifest: "/manifest.webmanifest",
+  applicationName: "CU Campus Connect",
+  appleWebApp: {
+    capable: true,
+    title: "Campus Connect",
+    statusBarStyle: "default",
+  },
+  formatDetection: {
+    telephone: false,
+  },
 };
 
 export default function RootLayout({
@@ -45,9 +56,14 @@ export default function RootLayout({
     <html lang="en" className={`h-full antialiased ${fraunces.variable} ${geist.variable}`} suppressHydrationWarning>
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+        <meta name="theme-color" content="#dc2626" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="Campus Connect" />
         <ThemeInitScript />
-      </head>
+     </head>
       <body className="min-h-full flex flex-col bg-background text-foreground">
+        <PWAInit />
         <ThemeProvider>
           <ErrorBoundary>
             <AuthProvider>

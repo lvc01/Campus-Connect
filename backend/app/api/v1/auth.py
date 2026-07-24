@@ -55,9 +55,12 @@ def _set_auth_cookies(
 ) -> None:
     """Set httpOnly cookies for access and refresh tokens, plus a CSRF cookie."""
     is_prod = settings.ENVIRONMENT == "production"
-    # Production uses SameSite=strict (same-origin only).
-    # Dev uses SameSite=lax so cookies work with dev tunnels (cross-origin HTTPS).
-    same_site = "strict" if is_prod else "lax"
+    # Cross-site deploy: frontend (Vercel) and backend (Render) live on different
+    # domains, so cookies must be ``SameSite=None`` + ``Secure`` in prod. The
+    # modern browser requirement of "None" necessitates HTTPS (Render terminates
+    # TLS, so this is satisfied). Dev keeps ``SameSite=Lax`` for local tunnels.
+    same_site = "none" if is_prod else "lax"
+    secure = is_prod
 
     # Access token — short-lived, sent on every request
     response.set_cookie(
@@ -65,7 +68,7 @@ def _set_auth_cookies(
         value=access_token,
         max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         httponly=True,
-        secure=is_prod,
+        secure=secure,
         samesite=same_site,
         path="/",
     )
@@ -76,7 +79,7 @@ def _set_auth_cookies(
         value=refresh_token,
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
         httponly=True,
-        secure=is_prod,
+        secure=secure,
         samesite=same_site,
         path="/api/v1/auth/refresh",
     )
@@ -92,7 +95,7 @@ def _set_auth_cookies(
         value=csrf_token,
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
         httponly=False,
-        secure=is_prod,
+        secure=secure,
         samesite=same_site,
         path="/",
     )
@@ -100,9 +103,12 @@ def _set_auth_cookies(
 
 def _clear_auth_cookies(response: Response) -> None:
     """Clear all auth-related cookies on logout."""
-    response.delete_cookie("cc_access_token", path="/")
-    response.delete_cookie("cc_refresh_token", path="/api/v1/auth/refresh")
-    response.delete_cookie("cc_csrf", path="/")
+    is_prod = settings.ENVIRONMENT == "production"
+    samesite = "none" if is_prod else "lax"
+    secure = is_prod
+    response.delete_cookie("cc_access_token", path="/", samesite=samesite, secure=secure)
+    response.delete_cookie("cc_refresh_token", path="/api/v1/auth/refresh", samesite=samesite, secure=secure)
+    response.delete_cookie("cc_csrf", path="/", samesite=samesite, secure=secure)
 
 
 # ── Routes ────────────────────────────────────────────────────────────
