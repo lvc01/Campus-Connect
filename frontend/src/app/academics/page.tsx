@@ -202,7 +202,7 @@ export default function AcademicsPage() {
                           {course.code}
                         </span>
                         {course.is_member && (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-400">
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-success/10 text-success">
                             Joined
                           </span>
                         )}

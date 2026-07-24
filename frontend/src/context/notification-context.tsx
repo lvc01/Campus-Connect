@@ -13,7 +13,7 @@ export interface NotificationData {
   data: Record<string, unknown> | null;
   is_read: boolean;
   created_at: string;
-  actor: { id: string; email: string; profile: { display_name: string; avatar_url: string | null } | null } | null;
+  actor: { id: string; email: string; role: string; profile: { display_name: string; avatar_url: string | null } | null } | null;
 }
 
 interface NotificationContextValue {

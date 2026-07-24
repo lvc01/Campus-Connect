@@ -7,6 +7,13 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { useAuth } from "@/context/auth-context";
 import { apiClient } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ModerationAnalytics } from "@/components/moderation-analytics";
 import { ReportCard } from "@/components/report-card";
 import type { ReportData } from "@/types/moderation";
@@ -42,6 +49,36 @@ const CATEGORY_LABELS: Record<string, string> = {
   harassment: "Harassment",
   other: "Other",
 };
+
+function FilterSelect({
+  label,
+  value,
+  onChange,
+  options,
+  labels,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: readonly string[];
+  labels: Record<string, string>;
+}) {
+  const items = options.filter(Boolean);
+  return (
+    <Select value={value || undefined} onValueChange={onChange}>
+      <SelectTrigger className="h-8 w-auto min-w-[112px] gap-1.5 rounded-lg border-border bg-surface px-2.5 text-[11px] font-semibold text-text-primary shadow-none outline-none transition-colors hover:border-border-strong focus:ring-2 focus:ring-accent/30 data-[state=open]:border-accent/50 [&>span]:line-clamp-1">
+        <SelectValue placeholder={label} />
+      </SelectTrigger>
+      <SelectContent className="rounded-xl border-border bg-popover p-1 text-popover-foreground shadow-lg">
+        {items.map((o) => (
+          <SelectItem key={o} value={o} className="rounded-md text-[13px]">
+            {labels[o] ?? o}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
 
 export default function ModerationPage() {
   const { user } = useAuth();
@@ -165,33 +202,27 @@ export default function ModerationPage() {
       <div className="px-6 pb-4">
         <div className="flex items-center gap-2 flex-wrap">
           <Filter className="h-3.5 w-3.5 text-text-tertiary" />
-          <select
+          <FilterSelect
+            label="Status"
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="text-[11px] font-semibold px-2 py-1.5 rounded-lg border border-border bg-surface text-text-primary outline-none focus:border-accent/50"
-          >
-            {STATUS_FILTERS.map((s) => (
-              <option key={s} value={s}>{STATUS_LABELS[s]}</option>
-            ))}
-          </select>
-          <select
+            onChange={setStatusFilter}
+            options={STATUS_FILTERS}
+            labels={STATUS_LABELS}
+          />
+          <FilterSelect
+            label="Type"
             value={targetFilter}
-            onChange={(e) => setTargetFilter(e.target.value)}
-            className="text-[11px] font-semibold px-2 py-1.5 rounded-lg border border-border bg-surface text-text-primary outline-none focus:border-accent/50"
-          >
-            {TARGET_FILTERS.map((t) => (
-              <option key={t} value={t}>{TARGET_LABELS[t]}</option>
-            ))}
-          </select>
-          <select
+            onChange={setTargetFilter}
+            options={TARGET_FILTERS}
+            labels={TARGET_LABELS}
+          />
+          <FilterSelect
+            label="Category"
             value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
-            className="text-[11px] font-semibold px-2 py-1.5 rounded-lg border border-border bg-surface text-text-primary outline-none focus:border-accent/50"
-          >
-            {CATEGORY_FILTERS.map((c) => (
-              <option key={c} value={c}>{CATEGORY_LABELS[c]}</option>
-            ))}
-          </select>
+            onChange={setCategoryFilter}
+            options={CATEGORY_FILTERS}
+            labels={CATEGORY_LABELS}
+          />
           <span className="text-[11px] text-text-tertiary ml-2">
             {reports.length} report{reports.length !== 1 ? "s" : ""}
           </span>

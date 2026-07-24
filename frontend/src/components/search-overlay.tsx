@@ -3,11 +3,12 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Calendar, Loader2, MessageCircle, Search, ShoppingBag, Users, X } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
+import { RoleBadge } from "@/components/RoleBadge";
 import { getInitials } from "@/lib/utils";
 import Link from "next/link";
 
 interface SearchResults {
-  users: Array<{ id: string; email: string; display_name: string; faculty: string | null; year_of_study: number | null }>;
+  users: Array<{ id: string; email: string; display_name: string; faculty: string | null; year_of_study: number | null; role: string }>;
   posts: Array<{ id: string; content: string | null; author_name: string; author_id: string; created_at: string; like_count: number }>;
   clubs: Array<{ id: string; slug: string; name: string; description: string | null; member_count: number; is_premium: boolean }>;
   events: Array<{ id: string; title: string; start_time: string | null; location: string | null; status: string }>;
@@ -127,7 +128,10 @@ export function SearchOverlay({ onClose }: { onClose: () => void }) {
                     <span className="text-xs font-bold text-text-inverse">{getInitials(u.display_name)}</span>
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-text-primary truncate">{u.display_name}</p>
+                    <p className="flex items-center gap-1.5 text-sm font-semibold text-text-primary truncate">
+                      {u.display_name}
+                      {u.role && <RoleBadge role={u.role} hideStudent size={11} />}
+                    </p>
                     <p className="text-xs text-text-tertiary truncate">{u.faculty || "General"}{u.year_of_study ? ` · ${u.year_of_study}st Year` : ""}</p>
                   </div>
                 </Link>

@@ -4,6 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { Bookmark, ImageOff, Images, MapPin } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
+import { RoleBadge } from "@/components/RoleBadge";
 import { getInitials, getRelativeTime } from "@/lib/utils";
 import type { ListingData } from "@/types/marketplace";
 
@@ -118,7 +119,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing, onSaveToggle 
 
         {stars && (
           <div className="flex items-center gap-1.5">
-            <span className="text-amber-400 text-xs tracking-wider">{stars}</span>
+            <span className="text-warning text-xs tracking-wider">{stars}</span>
             <span className="text-[10px] text-text-tertiary">({listing.rating_count})</span>
           </div>
         )}
@@ -129,6 +130,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing, onSaveToggle 
               <span className="text-[10px] font-bold text-text-inverse select-none">{getInitials(sellerName)}</span>
             </div>
             <span className="text-[11px] font-semibold text-text-secondary truncate max-w-[100px]">{sellerName}</span>
+            <RoleBadge role={listing.seller.role} hideStudent size={11} />
           </div>
           <span className="text-[10px] text-text-tertiary font-medium">{getRelativeTime(listing.created_at)}</span>
         </div>

@@ -21,6 +21,14 @@ import { getInitials, getRelativeTime, formatCount } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { getApiErrorMessage, getApiErrorStatus } from "@/lib/api-error";
 import { UploadResource } from "@/components/upload-resource";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { RoleBadge } from "@/components/RoleBadge";
 import Link from "next/link";
 import { BackLink } from "@/components/layout/BackLink";
 import type { CourseData, ResourceData, StudyGroupData } from "@/types/academics";
@@ -263,17 +271,17 @@ export default function CourseDetailPage() {
           <div className="ml-auto flex items-center gap-2">
             {tab === "resources" && course.is_member && (
               <>
-                <select
-                  value={resourceFilter}
-                  onChange={(e) => setResourceFilter(e.target.value)}
-                  className="text-[11px] font-semibold px-2 py-1.5 rounded-lg border border-border bg-surface text-text-primary outline-none focus:border-accent/50"
-                >
-                  <option value="">All Types</option>
-                  <option value="notes">Notes</option>
-                  <option value="past_paper">Past Papers</option>
-                  <option value="study_guide">Study Guides</option>
-                  <option value="other">Other</option>
-                </select>
+                <Select value={resourceFilter || undefined} onValueChange={setResourceFilter}>
+                  <SelectTrigger className="h-8 w-auto min-w-[120px] gap-1.5 rounded-lg border-border bg-surface px-2.5 text-[11px] font-semibold text-text-primary shadow-none outline-none transition-colors hover:border-border-strong focus:ring-2 focus:ring-accent/30 data-[state=open]:border-accent/50 [&>span]:line-clamp-1">
+                    <SelectValue placeholder="All Types" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl border-border bg-popover p-1 text-popover-foreground shadow-lg">
+                    <SelectItem value="notes" className="rounded-md text-[13px]">Notes</SelectItem>
+                    <SelectItem value="past_paper" className="rounded-md text-[13px]">Past Papers</SelectItem>
+                    <SelectItem value="study_guide" className="rounded-md text-[13px]">Study Guides</SelectItem>
+                    <SelectItem value="other" className="rounded-md text-[13px]">Other</SelectItem>
+                  </SelectContent>
+                </Select>
                 <Button size="sm" onClick={() => setShowUpload(true)} className="gap-1">
                   <Upload className="h-3.5 w-3.5" />
                   Upload
@@ -317,8 +325,9 @@ export default function CourseDetailPage() {
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-accent/10 text-accent">
                         {RESOURCE_TYPE_LABELS[r.resource_type] || r.resource_type}
                       </span>
-                      <span className="text-[11px] text-text-tertiary">
+                      <span className="flex items-center gap-1.5 text-[11px] text-text-tertiary">
                         by {r.uploader?.profile?.display_name || r.uploader?.email?.split("@")[0] || "Unknown"}
+                        {r.uploader?.role && <RoleBadge role={r.uploader.role} hideStudent size={11} />}
                       </span>
                       <span className="text-[11px] text-text-tertiary">
                         {getRelativeTime(r.created_at)}

@@ -10,6 +10,7 @@ import { getRelativeTimeShort } from "@/lib/utils";
 import { FeedErrorState } from "@/components/feed/feed-error-state";
 import { FeedSkeletonList } from "@/components/feed/feed-skeleton-list";
 import { EmptyState } from "@/components/ui/empty-state";
+import { RoleBadge } from "@/components/RoleBadge";
 import { ProfileTabs, type ProfileTab } from "./profile-tabs";
 import type { PostData } from "@/types/post";
 
@@ -24,6 +25,7 @@ interface CommentData {
   author: {
     id: string;
     email: string;
+    role?: string;
     profile: {
       display_name: string;
       avatar_url: string | null;
@@ -182,9 +184,10 @@ const CommentCard: React.FC<{ comment: CommentData }> = ({ comment }) => {
           <div className="flex items-center gap-2 flex-wrap">
             <Link
               href={`/profile/${comment.author_id}`}
-              className="font-display text-body-sm font-medium text-text-primary hover:underline truncate"
+              className="flex items-center gap-1.5 font-display text-body-sm font-medium text-text-primary hover:underline truncate"
             >
               {authorName}
+              {comment.author?.role && <RoleBadge role={comment.author.role} hideStudent size={12} />}
             </Link>
             <span className="font-sans text-caption text-text-secondary">@{handle}</span>
             <span className="font-sans text-caption text-text-secondary">·</span>

@@ -24,7 +24,7 @@ export interface ResourceData {
   created_at: string;
   course_id: string;
   uploaded_by: string;
-  uploader: { id: string; email: string; profile: { display_name: string; avatar_url: string | null } | null };
+  uploader: { id: string; email: string; role: string; profile: { display_name: string; avatar_url: string | null } | null };
 }
 
 export interface StudyGroupData {

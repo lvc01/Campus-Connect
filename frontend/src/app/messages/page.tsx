@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { LayoutShell } from "@/components/layout/LayoutShell";
 import { Avatar } from "@/components/Avatar";
+import { RoleBadge } from "@/components/RoleBadge";
 import { ReportModal } from "@/components/report-modal";
 import { useAuth } from "@/context/auth-context";
 import { useChat, Conversation, MessageData } from "@/context/chat-context";
@@ -484,7 +485,10 @@ function MessagesPageInner() {
                 </button>
                 <Avatar user={partner} size={36} />
                 <div className="flex-1 min-w-0">
-                  <p className="text-body-sm font-bold text-text-primary truncate">{partner.profile?.display_name || partner.email}</p>
+                  <p className="flex items-center gap-1.5 text-body-sm font-bold text-text-primary truncate">
+                    {partner.profile?.display_name || partner.email}
+                    {partner.role && <RoleBadge role={partner.role} hideStudent size={12} />}
+                  </p>
                   <p className="text-[11px] text-text-secondary">
                     {typingUsers.size > 0 ? (
                       <span className="text-accent font-medium">typing...</span>
@@ -691,11 +695,14 @@ function MessagesPageInner() {
               <div className="max-h-60 overflow-y-auto">
                 {searching && <div className="flex justify-center py-4"><div className="h-5 w-5 border-2 border-accent border-t-transparent rounded-full animate-spin" /></div>}
                 {!searching && userResults.length === 0 && userSearch.length >= 2 && <p className="text-center text-caption text-text-secondary py-4">No users found</p>}
-                {userResults.map((u: { id: string; profile?: { display_name?: string; avatar_url?: string | null } | null; email?: string }) => (
+                {userResults.map((u: { id: string; role?: string; profile?: { display_name?: string; avatar_url?: string | null } | null; email?: string }) => (
                   <button key={u.id} onClick={() => handleStartDM(u.id)} className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-surface transition-colors text-left">
                     <Avatar user={u} size={36} />
                     <div className="min-w-0">
-                      <p className="text-body-sm font-semibold text-text-primary truncate">{u.profile?.display_name || u.email?.split("@")[0] || "User"}</p>
+                      <p className="flex items-center gap-1.5 text-body-sm font-semibold text-text-primary truncate">
+                        {u.profile?.display_name || u.email?.split("@")[0] || "User"}
+                        {u.role && <RoleBadge role={u.role} hideStudent size={11} />}
+                      </p>
                       <p className="text-caption text-text-secondary truncate">{u.email || ""}</p>
                     </div>
                   </button>

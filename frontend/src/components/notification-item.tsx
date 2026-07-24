@@ -4,6 +4,7 @@ import React from "react";
 import { Bell, Heart, MessageCircle, Send, UserPlus } from "lucide-react";
 import { NotificationData } from "@/context/notification-context";
 import { getInitials, getRelativeTime } from "@/lib/utils";
+import { RoleBadge } from "@/components/RoleBadge";
 import Link from "next/link";
 
 function NotificationIcon({ type }: { type: string }) {
@@ -64,6 +65,12 @@ export function NotificationItem({ notification, onMarkRead, isDropdown = true }
       <div className="min-w-0 flex-1">
         <p className={`text-sm leading-snug ${!notification.is_read ? "font-semibold text-text-primary" : "text-text-primary"}`}>
           {notification.title}
+          {notification.actor?.role && (
+            <>
+              {" "}
+              <RoleBadge role={notification.actor.role} hideStudent size={11} />
+            </>
+          )}
         </p>
         {notification.body && (
           <p className="text-xs text-text-secondary mt-0.5 line-clamp-2">{notification.body}</p>

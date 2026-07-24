@@ -45,10 +45,10 @@ const PRIORITY_LABELS: Record<string, string> = {
 };
 
 const PRIORITY_COLORS: Record<string, string> = {
-  low: "text-zinc-400",
-  medium: "text-amber-400",
-  high: "text-orange-400",
-  urgent: "text-red-400",
+  low: "text-text-tertiary",
+  medium: "text-text-secondary",
+  high: "text-warning",
+  urgent: "text-error",
 };
 
 function StatCard({ label, value, color }: { label: string; value: number | string; color: string }) {
@@ -73,7 +73,7 @@ function BreakdownList({ data, labels }: { data: Record<string, number>; labels:
       {entries.map(([key, count]) => (
         <div key={key} className="flex items-center gap-3">
           <span className="text-xs font-semibold text-text-primary w-24 shrink-0">{labels[key] || key}</span>
-          <div className="flex-1 h-2 rounded-full bg-zinc-800 overflow-hidden">
+          <div className="flex-1 h-2 rounded-full bg-border overflow-hidden">
             <div
               className="h-full rounded-full bg-accent"
               style={{ width: `${total > 0 ? (count / total) * 100 : 0}%` }}
@@ -129,29 +129,29 @@ export function ModerationAnalytics() {
       {/* Stat cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         <StatCard label="Total" value={stats.total_reports} color="text-text-primary" />
-        <StatCard label="Pending" value={stats.pending} color="text-amber-400" />
+        <StatCard label="Pending" value={stats.pending} color="text-warning" />
         <StatCard label="Reviewing" value={stats.reviewing} color="text-sky-400" />
-        <StatCard label="Resolved" value={stats.resolved} color="text-emerald-400" />
+        <StatCard label="Resolved" value={stats.resolved} color="text-success" />
         <StatCard label="Dismissed" value={stats.dismissed} color="text-text-tertiary" />
       </div>
 
       {/* Enhanced stat cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-4">
-        <StatCard label="This Week" value={stats.resolved_this_week} color="text-emerald-400" />
+        <StatCard label="This Week" value={stats.resolved_this_week} color="text-success" />
         <StatCard label="Avg Resolution" value={avgResStr} color="text-sky-400" />
-        <StatCard label="SLA Breached" value={stats.sla_breached} color="text-red-400" />
+        <StatCard label="SLA Breached" value={stats.sla_breached} color="text-error" />
       </div>
 
       {/* Today's resolution */}
       <div className="bg-surface border border-border rounded-xl p-5 flex items-center justify-between">
         <div>
           <p className="text-xs font-bold tracking-widest text-text-tertiary uppercase">Resolved Today</p>
-          <p className="text-3xl font-black text-emerald-400 mt-1">{stats.resolved_today}</p>
+          <p className="text-3xl font-black text-success mt-1">{stats.resolved_today}</p>
         </div>
         {stats.pending_oldest && (
           <div className="text-right">
             <p className="text-xs font-bold tracking-widest text-text-tertiary uppercase">Oldest Pending</p>
-            <p className="text-sm font-semibold text-amber-400 mt-1">
+              <p className="text-sm font-semibold text-warning mt-1">
               {new Date(stats.pending_oldest).toLocaleDateString("en-IN", {
                 day: "numeric",
                 month: "short",

@@ -89,6 +89,7 @@ class SearchService:
                     "display_name": u.get("display_name", ""),
                     "faculty": u.get("faculty"),
                     "year_of_study": u.get("year_of_study"),
+                    "role": u.get("role", ""),
                 }
                 for u in users
             ],
@@ -159,6 +160,7 @@ class SearchService:
                 "display_name": u.profile.display_name if u.profile else u.email.split("@")[0],
                 "faculty": u.profile.faculty if u.profile else None,
                 "year_of_study": u.profile.year_of_study if u.profile else None,
+                "role": u.role.value if hasattr(u.role, "value") else u.role,
             }
             for u in users
         ]

@@ -16,6 +16,7 @@ export interface EventData {
   organizer: {
     id: string;
     email: string;
+    role: string;
     profile: { display_name: string; avatar_url: string | null } | null;
   };
   club: {

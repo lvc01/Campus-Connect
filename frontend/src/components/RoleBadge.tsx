@@ -1,4 +1,4 @@
-import { BadgeCheck, Shield, GraduationCap, BookOpen, type LucideIcon } from "lucide-react";
+import { BadgeCheck, Shield, ShieldCheck, GraduationCap, BookOpen, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 const ROLE_CONFIG: Record<string, { icon: LucideIcon; className: string; label: string }> = {
   admin: { icon: BadgeCheck, className: "text-sky-500", label: "Admin" },
   moderator: { icon: Shield, className: "text-violet-500", label: "Moderator" },
+  club_admin: { icon: ShieldCheck, className: "text-emerald-500", label: "Club Admin" },
   university_staff: { icon: GraduationCap, className: "text-amber-500", label: "Staff" },
   student: { icon: BookOpen, className: "text-text-secondary", label: "Student" },
 };

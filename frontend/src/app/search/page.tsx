@@ -5,11 +5,12 @@ import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Search as SearchIcon, Sparkles, Users, FileText, BookOpen, Calendar, ShoppingBag, Loader2 } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
+import { RoleBadge } from "@/components/RoleBadge";
 import { BackLink } from "@/components/layout/BackLink";
 import { apiClient } from "@/lib/api-client";
 
 interface SearchResult {
-  users: Array<{ id: string; email: string; display_name: string; faculty: string | null }>;
+  users: Array<{ id: string; email: string; display_name: string; faculty: string | null; role: string }>;
   posts: Array<{ id: string; content: string; author_name: string; author_id: string; created_at: string }>;
   clubs: Array<{ id: string; slug: string; name: string; description: string | null; member_count: number }>;
   events: Array<{ id: string; title: string; start_time: string | null; location: string | null; status: string }>;
@@ -151,7 +152,10 @@ function SearchContent() {
                   <Link key={u.id} href={`/profile/${u.id}`} className="flex items-center gap-3 bg-surface border border-border rounded-xl p-3 hover:border-accent/50 transition-colors">
                     <Avatar user={u} size={36} />
                     <div className="min-w-0">
-                      <p className="font-medium text-text-primary truncate">{u.display_name}</p>
+                      <p className="flex items-center gap-1.5 font-medium text-text-primary truncate">
+                        {u.display_name}
+                        {u.role && <RoleBadge role={u.role} hideStudent size={11} />}
+                      </p>
                       {u.faculty && <p className="text-xs text-text-tertiary">{u.faculty}</p>}
                     </div>
                   </Link>

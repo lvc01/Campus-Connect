@@ -97,6 +97,7 @@ async def reindex_meilisearch(ctx: dict) -> None:
                 "display_name": u.profile.display_name if u.profile else u.email.split("@")[0],
                 "faculty": u.profile.faculty if u.profile else None,
                 "year_of_study": u.profile.year_of_study if u.profile else None,
+                "role": u.role.value if hasattr(u.role, "value") else u.role,
             }
             for u in users
         ])

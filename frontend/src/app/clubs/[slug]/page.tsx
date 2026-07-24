@@ -14,6 +14,7 @@ import { getApiErrorMessage, getApiErrorStatus } from "@/lib/api-error";
 import { toast } from "sonner";
 import { MoreVertical, Shield, ShieldOff, UserMinus, Trash2, Flag, Check, X } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
+import { RoleBadge } from "@/components/RoleBadge";
 import { ReportModal } from "@/components/report-modal";
 import type { PostData } from "@/types/post";
 
@@ -416,7 +417,7 @@ export default function ClubHubPage() {
                 {getInitials(user?.profile?.display_name || "")}
               </span>
             </div>
-            <h2 className="font-display text-h2 font-medium text-text-primary mt-4">{user?.profile?.display_name}</h2>
+            <h2 className="font-display text-h2 font-medium text-text-primary mt-4">{user?.profile?.display_name} {user?.role && (<RoleBadge role={user.role} size={18} />)}</h2>
             <p className="font-sans text-caption font-medium text-text-tertiary mt-0.5">{user?.email}</p>
           </div>
 
@@ -650,6 +651,7 @@ export default function ClubHubPage() {
                           <div className="flex items-center gap-3 min-w-0">
                             <Avatar user={{ id: member.user_id, display_name: display, email: member.user?.email, profile: { avatar_url: prof?.avatar_url } }} size={32} />
                             <span className="font-sans text-body-sm font-medium text-text-primary truncate">{display}</span>
+                            <RoleBadge role={member.user?.role} hideStudent size={12} />
                           </div>
                           <div className="flex items-center gap-1.5 shrink-0">
                             <button
@@ -695,6 +697,7 @@ export default function ClubHubPage() {
                         <div className="min-w-0">
                           <span className="font-sans text-body-sm font-medium text-text-primary truncate block">
                             {display}
+                            <RoleBadge role={member.user?.role} hideStudent size={12} className="ml-1.5" />
                           </span>
                           <span className="font-sans text-caption text-text-tertiary truncate block -mt-0.5">
                             {prof?.faculty || "General Student"}

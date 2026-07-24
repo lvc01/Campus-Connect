@@ -20,6 +20,7 @@ import {
 import { LayoutShell } from "@/components/layout/LayoutShell";
 import { EmptyState } from "@/components/feed/EmptyState";
 import { Avatar } from "@/components/Avatar";
+import { RoleBadge } from "@/components/RoleBadge";
 import { useAuth } from "@/context/auth-context";
 import { useNotifications } from "@/context/notification-context";
 import { cn } from "@/lib/utils";
@@ -217,6 +218,7 @@ export default function NotificationsPage() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-text-primary leading-snug">
                       <span className="font-semibold">{actorName}</span>{" "}
+                      {n.actor?.role && <RoleBadge role={n.actor.role} hideStudent size={12} />}{" "}
                       {grouped ? (
                         <>
                           and {items.length - 1} {items.length - 1 === 1 ? "other" : "others"}{" "}

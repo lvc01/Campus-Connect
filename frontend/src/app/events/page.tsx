@@ -23,6 +23,7 @@ import { useAuth } from "@/context/auth-context";
 import { apiClient } from "@/lib/api-client";
 import { cn, formatCount, getInitials, getRelativeTime } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { RoleBadge } from "@/components/RoleBadge";
 import { CreateEvent, type CreatedEvent } from "@/components/create-event";
 import type { EventData } from "@/types/events";
 
@@ -299,8 +300,9 @@ export default function EventsPage() {
                                 {getInitials(event.organizer?.profile?.display_name || event.organizer?.email || "")}
                               </span>
                             </div>
-                            <span className="font-sans text-caption font-semibold text-text-secondary">
+                            <span className="flex items-center gap-1.5 font-sans text-caption font-semibold text-text-secondary">
                               {event.organizer?.profile?.display_name || event.organizer?.email?.split("@")[0]}
+                              {event.organizer?.role && <RoleBadge role={event.organizer.role} hideStudent size={11} />}
                             </span>
                           </div>
                           <div className="flex items-center gap-2">

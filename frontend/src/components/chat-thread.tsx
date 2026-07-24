@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import { Loader2, MessageCircle, Send, Image as ImageIcon, X } from "lucide-react";
 import { getInitials } from "@/lib/utils";
+import { RoleBadge } from "@/components/RoleBadge";
 import { useChat, Conversation, MessageData } from "@/context/chat-context";
 import { apiClient } from "@/lib/api-client";
 import { toast } from "sonner";
@@ -172,7 +173,10 @@ export const ChatThread: React.FC<ChatThreadProps> = ({ conversation, currentUse
             )}
           </div>
           <div>
-            <p className="font-display text-body-sm font-medium text-text-primary">{otherName}</p>
+            <p className="flex items-center gap-1.5 font-display text-body-sm font-medium text-text-primary">
+              {otherName}
+              {otherMember?.user?.role && <RoleBadge role={otherMember.user.role} hideStudent size={12} />}
+            </p>
             <p className="text-[10px] text-text-secondary font-medium">
               {isDM ? (isOnline ? "Online" : "Offline") : `${conversation.members?.length || 0} members`}
             </p>

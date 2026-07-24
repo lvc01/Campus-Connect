@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Search } from "lucide-react";
 import { getInitials, getRelativeTimeShort } from "@/lib/utils";
+import { RoleBadge } from "@/components/RoleBadge";
 import { useChat, Conversation } from "@/context/chat-context";
 import { apiClient } from "@/lib/api-client";
 
@@ -140,7 +141,10 @@ const ConversationRow: React.FC<ConversationRowProps> = ({ conv, isActive, curre
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2">
-          <span className="font-display text-body-sm font-medium text-text-primary truncate">{name}</span>
+          <span className="flex items-center gap-1.5 font-display text-body-sm font-medium text-text-primary truncate">
+            {name}
+            {otherMember?.user?.role && <RoleBadge role={otherMember.user.role} hideStudent size={11} />}
+          </span>
           {conv.last_message_at && (
             <span className="text-[10px] text-text-secondary shrink-0 font-medium">{getRelativeTimeShort(conv.last_message_at)}</span>
           )}

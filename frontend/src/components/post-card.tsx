@@ -15,6 +15,7 @@ import {
   Zap,
 } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
+import { RoleBadge } from "@/components/RoleBadge";
 import { IconButton } from "@/components/ui/icon-button";
 import { IconTextButton } from "@/components/ui/icon-text-button";
 import { Menu, type MenuItem } from "@/components/ui/menu";
@@ -193,6 +194,7 @@ export const PostCard: React.FC<PostCardProps> = ({
               >
                 {authorName}
               </Link>
+              <RoleBadge role={post.author.role} hideStudent size={13} />
               <span className="text-sm text-text-secondary truncate shrink-0">
                 @{handle}
               </span>

@@ -15,6 +15,7 @@ export interface ListingData {
   seller: {
     id: string;
     email: string;
+    role: string;
     profile: { display_name: string; avatar_url: string | null } | null;
   };
   images: { id?: string; url: string; order?: number }[];

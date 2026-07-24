@@ -5,6 +5,7 @@ import { Loader2, AtSign } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/Avatar";
+import { RoleBadge } from "@/components/RoleBadge";
 import { cn } from "@/lib/utils";
 import { getRelativeTimeShort } from "@/lib/utils";
 import type { PostAuthor } from "@/types/post";
@@ -432,6 +433,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
             <span className="font-display text-body-sm font-medium text-text-primary">
               {authorName}
             </span>
+            <RoleBadge role={comment.author?.role} hideStudent size={12} />
             <span className="text-xs text-accent font-medium">
               @{authorUsername}
             </span>

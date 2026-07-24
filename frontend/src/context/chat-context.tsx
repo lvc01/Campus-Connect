@@ -8,6 +8,7 @@ import { getWSClient, releaseWSClient, fetchWsToken, WSClient } from "@/lib/webs
 interface UserProfile {
   id: string;
   email: string;
+  role: string;
   profile: { display_name: string; avatar_url: string | null } | null;
 }
 

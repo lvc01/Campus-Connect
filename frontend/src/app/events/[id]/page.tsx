@@ -19,6 +19,7 @@ import {
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Avatar } from "@/components/Avatar";
+import { RoleBadge } from "@/components/RoleBadge";
 import { BackLink } from "@/components/layout/BackLink";
 import { DetailSkeleton } from "@/components/ui/detail-skeleton";
 import { ErrorState } from "@/components/ui/error-state";
@@ -70,7 +71,7 @@ export default function EventDetailPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  type Attendee = { id: string; email: string; display_name: string; avatar_url: string | null };
+  type Attendee = { id: string; email: string; display_name: string; avatar_url: string | null; role: string };
   const [attendees, setAttendees] = useState<{ going: Attendee[]; maybe: Attendee[]; not_going: Attendee[] } | null>(null);
   const [showAttendees, setShowAttendees] = useState(false);
   const [attendeesTab, setAttendeesTab] = useState<"going" | "maybe" | "not_going">("going");
@@ -335,7 +336,10 @@ export default function EventDetailPage() {
                   </span>
                 </div>
                 <div>
-                  <p className="font-sans text-body-sm font-semibold text-text-primary">{organizerName}</p>
+                  <p className="flex items-center gap-1.5 font-sans text-body-sm font-semibold text-text-primary">
+                    {organizerName}
+                    <RoleBadge role={event.organizer.role} hideStudent size={13} />
+                  </p>
                   <p className="font-sans text-caption text-text-secondary">Event Organizer</p>
                 </div>
               </div>
@@ -407,7 +411,10 @@ export default function EventDetailPage() {
                       className="flex items-center gap-3 rounded-xl px-2 py-2 hover:bg-surface transition-colors"
                     >
                       <Avatar user={{ id: a.id, display_name: a.display_name, email: a.email, profile: { avatar_url: a.avatar_url } }} size={36} />
-                      <span className="font-sans text-body-sm font-medium text-text-primary truncate">{a.display_name || a.email.split("@")[0]}</span>
+                      <span className="flex items-center gap-1.5 font-sans text-body-sm font-medium text-text-primary truncate">
+                        {a.display_name || a.email.split("@")[0]}
+                        <RoleBadge role={a.role} hideStudent size={12} />
+                      </span>
                     </Link>
                   ))}
                 </div>

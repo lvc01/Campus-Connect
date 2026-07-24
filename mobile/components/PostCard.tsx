@@ -32,6 +32,7 @@ function getRelativeTime(dateString: string): string {
 const ROLE_ICONS: Record<string, { name: string; color: string }> = {
   admin: { name: "checkmark-circle", color: "#0ea5e9" },
   moderator: { name: "shield", color: "#8b5cf6" },
+  club_admin: { name: "shield-check", color: "#10b981" },
   student: { name: "book", color: "#6b7280" },
   university_staff: { name: "school", color: "#f59e0b" },
 };

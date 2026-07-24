@@ -214,6 +214,7 @@ async def get_event_attendees(
         "email": r.user.email,
         "display_name": r.user.profile.display_name if r.user.profile else r.user.email,
         "avatar_url": r.user.profile.avatar_url if r.user.profile else None,
+        "role": r.user.role.value if hasattr(r.user.role, "value") else r.user.role,
     }
     if r.status == RSVPStatus.going:
       going.append(user_data)

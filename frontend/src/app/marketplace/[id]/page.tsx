@@ -13,6 +13,7 @@ import { ErrorState } from "@/components/ui/error-state";
 import { BackLink } from "@/components/layout/BackLink";
 import { CreateListing } from "@/components/create-listing";
 import { ReportModal } from "@/components/report-modal";
+import { RoleBadge } from "@/components/RoleBadge";
 import Link from "next/link";
 import type { ListingData } from "@/types/marketplace";
 
@@ -20,6 +21,7 @@ interface ListingDetail extends ListingData {
   seller: {
     id: string;
     email: string;
+    role: string;
     profile: { display_name: string; avatar_url: string | null; bio: string | null; year_of_study: number | null; faculty: string | null } | null;
   };
 }
@@ -345,7 +347,10 @@ export default function ListingDetailPage() {
                   <span className="text-lg font-bold text-text-inverse select-none">{getInitials(sellerName)}</span>
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-text-primary">{sellerName}</p>
+                  <p className="flex items-center gap-1.5 text-sm font-bold text-text-primary">
+                    {sellerName}
+                    <RoleBadge role={listing.seller.role} hideStudent size={13} />
+                  </p>
                   {sellerFaculty && (
                     <p className="text-[11px] text-text-secondary font-medium">{sellerFaculty}{sellerYear ? ` · Year ${sellerYear}` : ""}</p>
                   )}

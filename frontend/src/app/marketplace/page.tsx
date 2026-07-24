@@ -10,6 +10,13 @@ import { ListingCard } from "@/components/listing-card";
 import { CreateListing } from "@/components/create-listing";
 import { Button } from "@/components/ui/button";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Search,
   SlidersHorizontal,
   Plus,
@@ -241,17 +248,18 @@ export default function MarketplacePage() {
 
               <div className="flex items-center gap-2">
                 <ArrowUpDown className="h-3.5 w-3.5 text-text-tertiary" />
-                <select
-                  value={sort}
-                  onChange={(e) => setSort(e.target.value)}
-                  className="rounded-lg border border-border bg-surface px-2 py-1.5 text-[11px] font-semibold text-text-primary outline-none focus:border-accent/50"
-                >
-                  {SORT_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
+                <Select value={sort} onValueChange={setSort}>
+                  <SelectTrigger className="h-8 w-auto min-w-[150px] gap-1.5 rounded-lg border-border bg-surface px-2.5 text-[11px] font-semibold text-text-primary shadow-none outline-none transition-colors hover:border-border-strong focus:ring-2 focus:ring-accent/30 data-[state=open]:border-accent/50 [&>span]:line-clamp-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl border-border bg-popover p-1 text-popover-foreground shadow-lg">
+                    {SORT_OPTIONS.map((o) => (
+                      <SelectItem key={o.value} value={o.value} className="rounded-md text-[13px]">
+                        {o.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
