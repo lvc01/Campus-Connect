@@ -18,6 +18,7 @@ export interface UserProfile {
 export interface PostAuthor {
   id: string;
   email: string;
+  username?: string | null;
   role: string;
   profile: UserProfile | null;
 }
@@ -75,24 +76,4 @@ export interface FeedQuery {
   cursor?: string | null;
   faculty_only?: boolean;
   limit?: number;
-}
-
-export interface EventData {
-  id: string;
-  title: string;
-  start_time: string;
-  end_time: string | null;
-  location: string | null;
-  rsvp_count: number;
-  rsvp_limit: number | null;
-  status: string;
-}
-
-export interface ActiveAdData {
-  id: string;
-  title: string;
-  content: string | null;
-  image_url: string | null;
-  target_url: string | null;
-  boosted_post_id: string | null;
 }

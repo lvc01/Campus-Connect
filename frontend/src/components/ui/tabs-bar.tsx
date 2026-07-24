@@ -33,7 +33,7 @@ export const TabsBar: React.FC<TabsBarProps> = ({
       aria-orientation="horizontal"
       className={cn(
         "flex w-full border-b border-border",
-        sticky && "sticky top-0 z-10 bg-bg/85 backdrop-blur-md",
+        sticky && "sticky top-0 z-10 bg-background/85 backdrop-blur-md",
         className,
       )}
     >
@@ -51,11 +51,11 @@ export const TabsBar: React.FC<TabsBarProps> = ({
             onClick={() => !item.disabled && onChange(item.key)}
             className={cn(
               "group/tab relative flex-1 min-w-0 transition-colors duration-150",
-              "focus:outline-none focus-visible:bg-bg-elevated",
-              "hover:bg-bg-elevated/50",
+              "focus:outline-none focus-visible:bg-surface",
+              "hover:bg-surface/50",
               size === "sm" ? "h-10 text-sm" : "h-[48px] text-sm",
               "flex items-center justify-center font-medium",
-              isActive ? "text-text-primary font-semibold" : "text-text-secondary",
+              isActive ? "text-text-primary font-display font-medium" : "text-text-secondary font-sans",
               item.disabled && "opacity-50 cursor-not-allowed hover:bg-transparent",
             )}
           >
@@ -77,7 +77,7 @@ export const TabsBar: React.FC<TabsBarProps> = ({
               className={cn(
                 "absolute bottom-0 left-1/2 -translate-x-1/2 h-[2px] rounded-full transition-all duration-200",
                 isActive
-                  ? "w-10 bg-accent"
+                  ? "w-8 h-[3px] bg-accent"
                   : "w-0 bg-transparent group-hover/tab:bg-border-strong",
               )}
             />

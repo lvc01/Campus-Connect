@@ -138,11 +138,11 @@ export const UploadResource: React.FC<UploadResourceProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-fade-in">
-      <div className="w-full max-w-lg bg-bg-elevated border border-border shadow-2xl rounded-3xl p-6 sm:p-8 animate-pop-in relative overflow-y-auto max-h-[90vh]">
+      <div className="w-full max-w-lg bg-surface border border-border shadow-2xl rounded-3xl p-6 sm:p-8 animate-pop-in relative overflow-y-auto max-h-[90vh]">
         <button
           type="button"
           onClick={onClose}
-          className="absolute right-6 top-6 p-2 rounded-xl text-text-secondary hover:text-text-primary hover:bg-bg focus:outline-none transition-colors"
+          className="absolute right-6 top-6 p-2 rounded-xl text-text-secondary hover:text-text-primary hover:bg-background focus:outline-none transition-colors"
           aria-label="Close modal"
         >
           <X className="h-[18px] w-[18px]" strokeWidth={2.5} />
@@ -183,7 +183,7 @@ export const UploadResource: React.FC<UploadResourceProps> = ({
               id="resource-type"
               value={resourceType}
               onChange={(e) => setResourceType(e.target.value)}
-              className="w-full h-12 px-4 rounded-xl bg-bg-surface border border-border focus:border-accent focus:ring-4 focus:ring-accent/20 text-text-primary font-medium text-sm transition-all duration-200 outline-none cursor-pointer"
+              className="w-full h-12 px-4 rounded-xl bg-surface border border-border focus:border-accent focus:ring-4 focus:ring-accent/20 text-text-primary font-medium text-sm transition-all duration-200 outline-none cursor-pointer"
             >
               <option value="notes">Lecture &amp; Study Notes</option>
               <option value="past_paper">Past Exam Paper / Test</option>
@@ -204,7 +204,7 @@ export const UploadResource: React.FC<UploadResourceProps> = ({
               placeholder="e.g. Full answers with diagrams from the June exam session. Verified by course tutor."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full min-h-[90px] p-4 rounded-xl bg-bg-surface border border-border focus:border-accent focus:ring-4 focus:ring-accent/20 text-text-primary font-medium text-sm placeholder-text-muted transition-all duration-200 outline-none resize-none"
+              className="w-full min-h-[90px] p-4 rounded-xl bg-surface border border-border focus:border-accent focus:ring-4 focus:ring-accent/20 text-text-primary font-medium text-sm placeholder-text-muted transition-all duration-200 outline-none resize-none"
               maxLength={2000}
             />
           </div>
@@ -221,8 +221,8 @@ export const UploadResource: React.FC<UploadResourceProps> = ({
                 dragActive
                   ? "border-accent bg-accent/10"
                   : fileUrl
-                  ? "border-border bg-bg-elevated"
-                  : "border-border bg-bg-elevated hover:bg-bg"
+                  ? "border-border bg-surface"
+                  : "border-border bg-surface hover:bg-background"
               }`}
             >
               {isUploading ? (
@@ -231,13 +231,13 @@ export const UploadResource: React.FC<UploadResourceProps> = ({
                     <span className="truncate max-w-[200px]">{fileName}</span>
                     <span>{uploadProgress}%</span>
                   </div>
-                  <div className="w-full bg-bg-surface h-2 rounded-full overflow-hidden">
+                  <div className="w-full bg-surface h-2 rounded-full overflow-hidden">
                     <div
                       className="bg-accent h-full transition-all duration-150"
                       style={{ width: `${uploadProgress}%` }}
                     />
                   </div>
-                  <span className="text-[10px] text-text-muted block font-medium">
+                  <span className="text-[10px] text-text-tertiary block font-medium">
                     Uploading to secure academic repository...
                   </span>
                 </div>
@@ -264,7 +264,7 @@ export const UploadResource: React.FC<UploadResourceProps> = ({
                 </div>
               ) : (
                 <div className="text-center space-y-2 select-none">
-                  <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-bg-surface text-text-secondary mb-1">
+                  <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-surface text-text-secondary mb-1">
                     <Upload className="w-6 h-6" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
                   </div>
                   <p className="text-sm font-semibold text-text-primary">

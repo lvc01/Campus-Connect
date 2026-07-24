@@ -1,0 +1,31 @@
+# docker-compose.staging.yml
+# Staging overrides — usage:
+#   docker compose -f docker-compose.yml -f docker-compose.staging.yml up --build
+
+services:
+  db:
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+
+  api:
+    environment:
+      ENVIRONMENT: staging
+      DEBUG: "false"
+      OTP_DELIVERY_METHOD: smtp
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+
+  frontend:
+    environment:
+      - NEXT_PUBLIC_API_URL=https://staging-api.campusconnect.app/api/v1
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  nginx:
+    ports:
+      - "80:80"
+      - "443:443"

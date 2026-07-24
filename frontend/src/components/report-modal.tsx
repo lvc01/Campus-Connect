@@ -50,11 +50,11 @@ export const ReportModal: React.FC<ReportModalProps> = ({ targetType, targetId, 
 
   return createPortal(
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-md animate-fade-in">
-      <div className="w-full max-w-md bg-bg-surface border border-border bg-bg-main shadow-2xl rounded-3xl p-6 sm:p-8 animate-pop-in relative">
+      <div className="w-full max-w-md bg-surface border border-border shadow-2xl rounded-3xl p-6 sm:p-8 animate-pop-in relative">
         <button
           type="button"
           onClick={onClose}
-          className="absolute right-6 top-6 p-2 rounded-xl text-text-muted hover:text-text-main hover:bg-[rgba(var(--bg-hover),0.08)] focus:outline-none"
+          className="absolute right-6 top-6 p-2 rounded-xl text-text-tertiary hover:text-text-primary hover:bg-[rgba(var(--text-primary),0.08)] focus:outline-none"
           aria-label="Close modal"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -70,8 +70,8 @@ export const ReportModal: React.FC<ReportModalProps> = ({ targetType, targetId, 
                 <polyline points="20 6 9 17 4 12" />
               </svg>
             </div>
-            <h3 className="text-lg font-bold text-text-main mb-2">Report submitted</h3>
-            <p className="text-sm text-text-muted">Moderators will review it shortly.</p>
+            <h3 className="text-lg font-bold text-text-primary mb-2">Report submitted</h3>
+            <p className="text-sm text-text-tertiary">Moderators will review it shortly.</p>
             <div className="mt-6">
               <Button type="button" onClick={onClose}>
                 Done
@@ -80,8 +80,8 @@ export const ReportModal: React.FC<ReportModalProps> = ({ targetType, targetId, 
           </div>
         ) : (
           <>
-            <h2 className="text-xl font-bold tracking-tight text-text-main mb-2">Report post</h2>
-            <p className="text-sm text-text-muted mb-6">Why are you reporting this post? Your report is anonymous.</p>
+            <h2 className="text-xl font-bold tracking-tight text-text-primary mb-2">Report post</h2>
+            <p className="text-sm text-text-tertiary mb-6">Why are you reporting this post? Your report is anonymous.</p>
 
             {error && (
               <div className="mb-4 p-3 rounded-xl bg-red-950/40 border border-red-500/20 text-xs font-semibold text-red-400 text-center">
@@ -91,14 +91,14 @@ export const ReportModal: React.FC<ReportModalProps> = ({ targetType, targetId, 
 
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="flex flex-col gap-2">
-                <label htmlFor="report-category" className="text-xs font-bold text-text-muted select-none">
+                <label htmlFor="report-category" className="text-xs font-bold text-text-tertiary select-none">
                   CATEGORY
                 </label>
                 <select
                   id="report-category"
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
-                  className="w-full min-h-[44px] px-4 rounded-xl bg-bg-surface border border-border focus:border-accent focus:ring-4 focus:ring-accent/20 text-text-main font-medium text-sm transition-all duration-200 outline-none appearance-none"
+                  className="w-full min-h-[44px] px-4 rounded-xl bg-surface border border-border focus:border-accent focus:ring-4 focus:ring-accent/20 text-text-primary font-medium text-sm transition-all duration-200 outline-none appearance-none"
                 >
                   {REPORT_CATEGORIES.map((c) => (
                     <option key={c.value} value={c.value}>{c.label}</option>
@@ -107,7 +107,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({ targetType, targetId, 
               </div>
 
               <div className="flex flex-col gap-2">
-                <label htmlFor="report-desc" className="text-xs font-bold text-text-muted select-none">
+                <label htmlFor="report-desc" className="text-xs font-bold text-text-tertiary select-none">
                   ADDITIONAL DETAILS (OPTIONAL)
                 </label>
                 <textarea
@@ -116,7 +116,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({ targetType, targetId, 
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   maxLength={2000}
-                  className="w-full min-h-[100px] p-4 rounded-xl bg-bg-surface border border-border focus:border-accent focus:ring-4 focus:ring-accent/20 text-text-main font-medium text-sm placeholder:text-text-muted transition-all duration-200 outline-none resize-none"
+                  className="w-full min-h-[100px] p-4 rounded-xl bg-surface border border-border focus:border-accent focus:ring-4 focus:ring-accent/20 text-text-primary font-medium text-sm placeholder:text-text-tertiary transition-all duration-200 outline-none resize-none"
                 />
               </div>
 

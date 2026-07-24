@@ -30,19 +30,6 @@ class ConversationResponse(BaseModel):
     unread_count: int = 0
 
 
-class MessageResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: uuid.UUID
-    conversation_id: uuid.UUID
-    sender: UserResponse
-    content: str | None = None
-    message_type: MessageType
-    file_url: str | None = None
-    edited_at: datetime | None = None
-    created_at: datetime
-
-
 class MessageReactionResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -52,10 +39,35 @@ class MessageReactionResponse(BaseModel):
     created_at: datetime
 
 
+class MessageReplyResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    sender: UserResponse
+    content: str | None = None
+    message_type: MessageType = MessageType.text
+
+
+class MessageResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    conversation_id: uuid.UUID
+    sender: UserResponse
+    content: str | None = None
+    message_type: MessageType
+    file_url: str | None = None
+    reply_to: MessageReplyResponse | None = None
+    reactions: list[MessageReactionResponse] = []
+    edited_at: datetime | None = None
+    created_at: datetime
+
+
 class SendMessageRequest(BaseModel):
     content: str | None = Field(default=None, max_length=5000)
     message_type: MessageType = MessageType.text
     file_url: str | None = Field(default=None, max_length=500)
+    reply_to_message_id: uuid.UUID | None = None
 
 
 class EditMessageRequest(BaseModel):

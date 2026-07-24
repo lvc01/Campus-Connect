@@ -1,17 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { Heart, MessageCircle, Bookmark, Repeat2, Link as LinkIcon, Lock, Check } from "lucide-react";
+import { Heart, MessageCircle, Bookmark, Repeat2, Link as LinkIcon, Lock } from "lucide-react";
 import NextLink from "next/link";
 import { toast } from "sonner";
 import { useAuth } from "@/context/auth-context";
 import { Avatar } from "@/components/Avatar";
-import { HashtagText } from "@/components/HashtagText";
+import { RoleBadge } from "@/components/RoleBadge";
+import { MediaGallery } from "@/components/MediaGallery";
+import { MentionHighlight } from "@/components/MentionHighlight";
+import { PollView } from "@/components/PollView";
 import { CommentThread } from "./Comment";
 import { PostMenu } from "./PostMenu";
 import { apiClient } from "@/lib/api-client";
 import { cn, formatCount } from "@/lib/utils";
-import type { PostData, PostAuthor, PollData } from "@/types/post";
+import type { PostData, PostAuthor } from "@/types/post";
 
 interface PostComment {
   id: string;
@@ -55,11 +58,9 @@ export function PostCard({ post, onPostDeleted }: { post: PostData; onPostDelete
   const [commentText, setCommentText] = useState("");
   const [postingComment, setPostingComment] = useState(false);
   const [editedContent, setEditedContent] = useState<string | null>(null);
-  const [pollData, setPollData] = useState<PollData | null>(post.poll ?? null);
-  const [votingOptionId, setVotingOptionId] = useState<string | null>(null);
 
   const authorName = post.author.profile?.display_name || post.author.email;
-  const authorHandle = post.author.email.split("@")[0];
+  const authorHandle = post.author.username || post.author.email.split("@")[0];
 
   const handleLike = async () => {
     if (!user || likeLoading) return;
@@ -141,47 +142,6 @@ export function PostCard({ post, onPostDeleted }: { post: PostData; onPostDelete
     toast.success("Link copied!");
   };
 
-  const handleVote = async (optionId: string) => {
-    if (!user || votingOptionId) return;
-    const previousVote = pollData?.user_vote_option_id ?? null;
-    const isSameVote = previousVote === optionId;
-    setVotingOptionId(optionId);
-    try {
-      await apiClient.post(`/posts/${post.id}/poll/vote`, { option_id: optionId });
-      // Update local poll data optimistically
-      if (pollData && !isSameVote) {
-        const newOptions = pollData.options.map((opt) => {
-          if (opt.id === optionId) {
-            return { ...opt, vote_count: opt.vote_count + 1 };
-          }
-          if (opt.id === previousVote) {
-            return { ...opt, vote_count: Math.max(0, opt.vote_count - 1) };
-          }
-          return opt;
-        });
-        setPollData({
-          options: newOptions,
-          total_votes: previousVote ? pollData.total_votes : pollData.total_votes + 1,
-          user_vote_option_id: optionId,
-        });
-      } else if (pollData && isSameVote) {
-        // Unvoting: remove vote
-        const newOptions = pollData.options.map((opt) =>
-          opt.id === optionId ? { ...opt, vote_count: Math.max(0, opt.vote_count - 1) } : opt
-        );
-        setPollData({
-          options: newOptions,
-          total_votes: Math.max(0, pollData.total_votes - 1),
-          user_vote_option_id: null,
-        });
-      }
-    } catch {
-      toast.error("Failed to vote");
-    } finally {
-      setVotingOptionId(null);
-    }
-  };
-
   const toggleComments = async () => {
     if (showComments) {
       setShowComments(false);
@@ -231,24 +191,25 @@ export function PostCard({ post, onPostDeleted }: { post: PostData; onPostDelete
   };
 
   return (
-    <article className="border-b border-border px-6 py-4">
+    <article className="border-b border-border-quiet px-4 sm:px-6 py-4 transition-colors duration-200 hover:bg-surface/40">
       <div className="flex gap-3">
         <NextLink href={`/profile/${post.author_id}`}>
           <Avatar user={post.author} size={40} />
         </NextLink>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <NextLink href={`/profile/${post.author_id}`} className="text-body-sm font-semibold text-text-primary hover:underline">
+          <div className="flex items-center gap-2 min-w-0">
+            <NextLink href={`/profile/${post.author_id}`} className="font-display font-medium text-body-sm text-text-primary hover:underline truncate">
               {authorName}
             </NextLink>
-            <span className="text-caption text-text-secondary">@{authorHandle}</span>
-            <span className="text-caption text-text-secondary">·</span>
-            <span className="text-caption text-text-secondary">{getRelativeTime(post.created_at)}</span>
+            <RoleBadge role={post.author.role} hideStudent size={13} />
+            <span className="text-caption text-text-secondary shrink-0">@{authorHandle}</span>
+            <span className="text-caption text-text-secondary shrink-0">·</span>
+            <span className="text-caption text-text-secondary shrink-0">{getRelativeTime(post.created_at)}</span>
             {editedContent !== null && (
-              <span className="text-caption text-text-secondary italic">· Edited</span>
+              <span className="text-caption text-text-secondary italic shrink-0">· Edited</span>
             )}
             {post.visibility === "faculty_only" && (
-              <Lock className="h-3 w-3 text-accent" />
+              <Lock className="h-3 w-3 text-accent shrink-0" />
             )}
             <div className="ml-auto">
               <PostMenu
@@ -269,132 +230,75 @@ export function PostCard({ post, onPostDeleted }: { post: PostData; onPostDelete
           </div>
 
           {(editedContent ?? post.content) && (
-            <p className="mt-1 text-body text-text-primary whitespace-pre-wrap">
-              <HashtagText text={editedContent ?? post.content ?? ""} />
+            <p className="mt-1.5 text-body leading-relaxed text-text-primary whitespace-pre-wrap">
+              <MentionHighlight text={editedContent ?? post.content ?? ""} />
             </p>
           )}
 
-          {post.media.length > 0 && (
-            <div className="mt-3 overflow-hidden rounded-lg">
-              {post.media.map((m) => (
-                <div key={m.id}>
-                  {m.media_type === "image" ? (
-                    <img src={m.url} alt="" className="w-full object-cover" loading="lazy" />
-                  ) : (
-                    <video src={m.url} className="w-full" controls />
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
+          {post.media.length > 0 && <MediaGallery media={post.media} />}
 
           {/* Poll display */}
-          {pollData && (
-            <div className="mt-3 space-y-1.5">
-              {pollData.options.map((opt) => {
-                const pct = pollData.total_votes > 0 ? Math.round((opt.vote_count / pollData.total_votes) * 100) : 0;
-                const isSelected = pollData.user_vote_option_id === opt.id;
-                const hasVoted = pollData.user_vote_option_id !== null;
-                return (
-                  <button
-                    key={opt.id}
-                    onClick={() => handleVote(opt.id)}
-                    disabled={votingOptionId !== null}
-                    className={cn(
-                      "w-full rounded-xl border px-3.5 py-2.5 text-left text-sm font-medium transition-all duration-200 relative overflow-hidden",
-                      hasVoted
-                        ? isSelected
-                          ? "border-accent bg-accent/10 text-accent"
-                          : "border-border bg-surface text-text-secondary"
-                        : "border-border bg-surface hover:border-accent/50 hover:bg-accent/5 text-text-primary",
-                      votingOptionId !== null && "opacity-60 cursor-not-allowed",
-                    )}
-                  >
-                    {/* Background fill bar */}
-                    {hasVoted && (
-                      <div
-                        className={cn(
-                          "absolute inset-y-0 left-0 transition-all duration-500 ease-out",
-                          isSelected ? "bg-accent/15" : "bg-border/50"
-                        )}
-                        style={{ width: `${pct}%` }}
-                      />
-                    )}
-                    <span className="relative flex items-center justify-between">
-                      <span className="flex items-center gap-2">
-                        {isSelected && <Check size={14} className="text-accent shrink-0" />}
-                        {opt.text}
-                      </span>
-                      {hasVoted && (
-                        <span className={cn("text-xs tabular-nums", isSelected ? "text-accent font-semibold" : "text-text-secondary")}>
-                          {pct}%
-                        </span>
-                      )}
-                    </span>
-                  </button>
-                );
-              })}
-              <p className="text-[11px] text-text-secondary pt-0.5">
-                {pollData.total_votes} {pollData.total_votes === 1 ? "vote" : "votes"}
-              </p>
-            </div>
-          )}
+          {post.poll && <PollView postId={post.id} poll={post.poll} />}
 
-          <div className="mt-3 flex items-center gap-6 text-text-secondary">
+          <div className="mt-3 flex items-center gap-1.5 sm:gap-2 text-text-secondary">
             <button
               onClick={toggleComments}
               className={cn(
-                "flex items-center gap-1.5 text-body-sm rounded-full px-3 py-1.5 transition-all active:scale-95",
-                showComments ? "text-accent bg-accent/10" : "hover:text-accent hover:bg-accent/10",
+                "flex items-center gap-1.5 text-body-sm rounded-full px-2.5 py-1.5 transition-all active:scale-95",
+                showComments ? "text-accent bg-accent/10 ring-1 ring-accent/15" : "hover:text-accent hover:bg-accent/10",
               )}
             >
               <MessageCircle className="h-[18px] w-[18px]" />
-              <span className="text-[13px]">{formatCount(commentCount)}</span>
+              <span className="text-[13px] font-medium tabular-nums">{formatCount(commentCount)}</span>
             </button>
 
             <button
               onClick={handleRepost}
               disabled={repostLoading}
               className={cn(
-                "flex items-center gap-1.5 text-body-sm rounded-full px-3 py-1.5 transition-all active:scale-95",
+                "flex items-center gap-1.5 text-body-sm rounded-full px-2.5 py-1.5 transition-all active:scale-95",
                 reposted
-                  ? "text-repost bg-repost/10"
+                  ? "text-repost bg-repost/10 ring-1 ring-repost/15"
                   : "hover:text-repost hover:bg-repost/10",
                 repostLoading && "opacity-60 cursor-not-allowed",
               )}
             >
               <Repeat2 className={cn("h-[18px] w-[18px]", reposted && "fill-current")} />
-              <span className="text-[13px]">{formatCount(repostCount)}</span>
+              <span className="text-[13px] font-medium tabular-nums">{formatCount(repostCount)}</span>
             </button>
 
             <button
               onClick={handleLike}
               disabled={likeLoading}
               className={cn(
-                "flex items-center gap-1.5 text-body-sm rounded-full px-3 py-1.5 transition-all active:scale-95",
-                liked ? "text-like bg-like/10" : "hover:text-like hover:bg-like/10",
+                "flex items-center gap-1.5 text-body-sm rounded-full px-2.5 py-1.5 transition-all active:scale-95",
+                liked ? "text-like bg-like/10 ring-1 ring-like/15" : "hover:text-like hover:bg-like/10",
                 likeLoading && "opacity-60",
               )}
             >
               <Heart className={cn("h-[18px] w-[18px]", liked && "fill-current", likeAnimating && "like-pop")} />
-              <span className="text-[13px]">{formatCount(likeCount)}</span>
+              <span className="text-[13px] font-medium tabular-nums">{formatCount(likeCount)}</span>
             </button>
 
             <button
               onClick={handleSave}
               disabled={saveLoading}
               className={cn(
-                "flex items text-body-sm rounded-full px-3 py-1.5 transition-all active:scale-95",
-                saved ? "text-accent bg-accent/10" : "hover:text-accent hover:bg-accent/10",
+                "flex items-center gap-1.5 text-body-sm rounded-full px-2.5 py-1.5 transition-all active:scale-95",
+                saved ? "text-accent bg-accent/10 ring-1 ring-accent/15" : "hover:text-accent hover:bg-accent/10",
                 saveLoading && "opacity-60",
               )}
+              aria-label={saved ? "Remove bookmark" : "Bookmark post"}
+              title={saved ? "Remove bookmark" : "Bookmark post"}
             >
               <Bookmark className={cn("h-[18px] w-[18px]", saved && "fill-current")} />
             </button>
 
             <button
               onClick={handleCopyLink}
-              className="flex items text-body-sm rounded-full px-3 py-1.5 transition-all hover:text-accent hover:bg-accent/10 active:scale-95"
+              className="flex items-center text-body-sm rounded-full px-2.5 py-1.5 transition-all hover:text-accent hover:bg-accent/10 active:scale-95"
+              aria-label="Copy link to post"
+              title="Copy link"
             >
               <LinkIcon className="h-[18px] w-[18px]" />
             </button>
@@ -407,19 +311,24 @@ export function PostCard({ post, onPostDeleted }: { post: PostData; onPostDelete
           {user && (
             <div className="flex gap-2 mb-3">
               <Avatar user={user} size={28} />
-              <div className="flex-1 flex gap-2">
+              <div className="flex-1 flex gap-2 items-center">
                 <input
                   autoFocus
                   value={commentText}
                   onChange={(e) => setCommentText(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handlePostComment()}
                   placeholder="Write a comment..."
-                  className="flex-1 rounded-full border border-border bg-surface px-3 py-1.5 text-caption text-text-primary outline-none focus:border-accent transition-colors"
+                  className="flex-1 rounded-full border border-border bg-surface px-4 py-2 font-sans text-body-sm text-text-primary outline-none transition-colors placeholder:text-text-secondary focus:border-accent focus:bg-background"
                 />
                 <button
                   onClick={handlePostComment}
                   disabled={!commentText.trim() || postingComment}
-                  className="text-caption font-semibold text-accent hover:opacity-80 active:scale-95 transition-all disabled:opacity-40"
+                  className={cn(
+                    "text-caption font-semibold px-2 py-1 rounded-full transition-all active:scale-95 disabled:opacity-40",
+                    commentText.trim()
+                      ? "text-accent hover:bg-accent/10"
+                      : "text-text-secondary",
+                  )}
                 >
                   {postingComment ? "..." : "Post"}
                 </button>

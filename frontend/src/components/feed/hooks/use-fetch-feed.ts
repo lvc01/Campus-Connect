@@ -109,6 +109,7 @@ export function useFetchFeed(options: UseFetchFeedOptions = {}): UseFetchFeedRes
   // Initial load + refetch when filters change
   useEffect(() => {
     const controller = new AbortController();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void fetchPage(null, false, controller.signal);
     return () => controller.abort();
   }, [fetchPage]);

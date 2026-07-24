@@ -144,16 +144,19 @@ async def get_feed(
     faculty_only: bool = Query(default=False),
     club_id: uuid.UUID | None = Query(default=None),
     author_id: uuid.UUID | None = Query(default=None),
+    club_feed: bool = Query(default=False),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> FeedResponse:
   """
   Retrieve a paginated feed of posts sorted newest first.
-  Implements strict campus visibility boundaries.
+  When club_feed=true with club_id, returns posts by club members,
+  posts tagged with the club, and club announcements.
   """
   post_service = get_post_service()
   feed = await post_service.get_feed(
-      current_user.id, cursor, limit, faculty_only, db, club_id=club_id, author_id=author_id
+      current_user.id, cursor, limit, faculty_only, db,
+      club_id=club_id, author_id=author_id, club_feed=club_feed,
   )
   return FeedResponse.model_validate(feed)
 
@@ -282,6 +285,24 @@ async def get_comments(
   return [CommentResponse.model_validate(c) for c in comments]
 
 
+@router.patch(
+    "/{post_id}/comments/{comment_id}",
+    response_model=CommentResponse,
+    summary="Edit a comment",
+)
+async def edit_comment(
+    post_id: uuid.UUID,
+    comment_id: uuid.UUID,
+    data: CommentCreate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> CommentResponse:
+  """Edit your own comment's content."""
+  post_service = get_post_service()
+  comment = await post_service.edit_comment(current_user.id, post_id, comment_id, data.content, db)
+  return CommentResponse.model_validate(comment)
+
+
 @router.delete(
     "/{post_id}/comments/{comment_id}",
     response_model=MessageResponse,
@@ -297,6 +318,22 @@ async def delete_comment(
   post_service = get_post_service()
   await post_service.delete_comment(current_user.id, post_id, comment_id, db)
   return MessageResponse(message="Comment deleted.")
+
+
+@router.get(
+    "/{post_id}",
+    response_model=PostResponse,
+    summary="Get a single post by ID",
+)
+async def get_post(
+    post_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> PostResponse:
+    """Retrieve a single post with its media, poll, and interaction state."""
+    post_service = get_post_service()
+    post = await post_service.get_post_by_id(current_user.id, post_id, db)
+    return PostResponse.model_validate(post)
 
 
 @router.patch(

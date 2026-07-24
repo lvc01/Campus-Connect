@@ -16,6 +16,7 @@ export interface EventData {
   organizer: {
     id: string;
     email: string;
+    role: string;
     profile: { display_name: string; avatar_url: string | null } | null;
   };
   club: {
@@ -25,4 +26,5 @@ export interface EventData {
     logo_url: string | null;
   } | null;
   user_rsvp: "going" | "maybe" | "not_going" | null;
+  is_saved?: boolean;
 }

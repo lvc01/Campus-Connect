@@ -1,25 +1,37 @@
 import axios from "axios";
 
-// Default to the dev stack's backend port (:8001). Port :8000 is reserved
-// for an unrelated project on this machine, so falling back to it would
-// cross-talk. dev.sh writes frontend/.env.local which overrides this.
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001/api/v1";
+// In development, proxy through Next.js rewrites (same-origin) so cookies
+// work with dev tunnels. In production, the reverse proxy handles routing.
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
   timeout: 15000,
+  withCredentials: true,  // Send cookies (access_token, refresh_token, csrf) on every request
   headers: {
     "Content-Type": "application/json",
   },
 });
 
-// Interceptor to inject the access token in requests
+/**
+ * Read a cookie value by name.  Used to grab the CSRF token from the
+ * ``cc_csrf`` cookie (which is *not* httpOnly so JS can read it).
+ */
+function getCookie(name: string): string | null {
+  if (typeof document === "undefined") return null;
+  const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+// Interceptor to inject the CSRF token on state-changing requests
 apiClient.interceptors.request.use(
   (config) => {
-    if (typeof window !== "undefined") {
-      const accessToken = localStorage.getItem("cc_access_token");
-      if (accessToken && config.headers) {
-        config.headers.Authorization = `Bearer ${accessToken}`;
+    // Attach CSRF header for non-safe methods
+    const method = (config.method || "").toLowerCase();
+    if (["post", "put", "patch", "delete"].includes(method)) {
+      const csrfToken = getCookie("cc_csrf");
+      if (csrfToken && config.headers) {
+        config.headers["X-CSRF-Token"] = csrfToken;
       }
     }
     // Let the browser set Content-Type with the correct boundary for FormData
@@ -52,9 +64,7 @@ const processQueue = (error: unknown, token: string | null = null) => {
 
 const clearSessionAndRedirect = () => {
   if (typeof window === "undefined") return;
-  localStorage.removeItem("cc_access_token");
-  localStorage.removeItem("cc_refresh_token");
-  // Dispatch custom event so the AuthProvider can react (soft redirect)
+  // Cookies are cleared by the backend on logout; just dispatch the event
   window.dispatchEvent(new CustomEvent("auth:session-expired"));
 };
 
@@ -71,8 +81,8 @@ apiClient.interceptors.response.use(
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
         })
-          .then((token) => {
-            originalRequest.headers.Authorization = `Bearer ${token}`;
+          .then(() => {
+            // After refresh, cookies are updated — just retry
             return apiClient(originalRequest);
           })
           .catch((err) => {
@@ -83,31 +93,15 @@ apiClient.interceptors.response.use(
       originalRequest._retry = true;
       isRefreshing = true;
 
-      const refreshToken = typeof window !== "undefined" ? localStorage.getItem("cc_refresh_token") : null;
-
-      if (!refreshToken) {
-        isRefreshing = false;
-        clearSessionAndRedirect();
-        return Promise.reject(error);
-      }
-
       try {
-        // Request token rotation from the backend
-        const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {
-          refresh_token: refreshToken,
+        // Request token rotation — the refresh cookie is sent automatically
+        await axios.post(`${API_BASE_URL}/auth/refresh`, null, {
+          withCredentials: true,
         });
 
-        const { access_token, refresh_token: new_refresh_token } = response.data;
-
-        if (typeof window !== "undefined") {
-          localStorage.setItem("cc_access_token", access_token);
-          localStorage.setItem("cc_refresh_token", new_refresh_token);
-        }
-
-        // Replay the queue and original request
-        apiClient.defaults.headers.common["Authorization"] = `Bearer ${access_token}`;
-        originalRequest.headers["Authorization"] = `Bearer ${access_token}`;
-        processQueue(null, access_token);
+        // Cookies have been updated by the backend Set-Cookie headers.
+        // Replay the queue and original request.
+        processQueue(null, "refreshed");
         isRefreshing = false;
         return apiClient(originalRequest);
       } catch (refreshError) {

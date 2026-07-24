@@ -60,6 +60,15 @@ jobs:
           --health-retries 5
         ports:
           - 5432:5432
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
 
     steps:
       - uses: actions/checkout@v4
@@ -74,18 +83,28 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          pip install pytest-cov
 
-      - name: Run tests
-        run: pytest tests -v --timeout=30
+      - name: Run tests with coverage
+        run: pytest tests -v --timeout=30 --cov=app --cov-report=html --cov-report=term --cov-fail-under=80
         env:
           DATABASE_URL: "postgresql+asyncpg://postgres:password@localhost:5432/campus_connect_test"
           JWT_ACCESS_SECRET: "ci-test-access-secret"
           JWT_REFRESH_SECRET: "ci-test-refresh-secret"
           OTP_DELIVERY_METHOD: "console"
           ENVIRONMENT: "testing"
+          REDIS_URL: "redis://localhost:6379/0"
+          REDIS_ENABLED: "true"
+
+      - name: Upload coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend/htmlcov/
 
   lint-frontend:
-    name: Frontend — Lint
+    name: Frontend — Lint & Test
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -101,10 +120,16 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --legacy-peer-deps
 
       - name: Lint
         run: npm run lint
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm run test
 
   build-frontend:
     name: Frontend — Build
@@ -131,7 +156,7 @@ jobs:
           NEXT_PUBLIC_API_URL: "http://localhost:8000/api/v1"
 
   docker-build:
-    name: Docker — Build image
+    name: Docker — Build & Scan
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -143,12 +168,43 @@ jobs:
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: "campus-connect-api:ci"
+          format: "table"
+          exit-code: "1"
+          severity: "CRITICAL,HIGH"
+          ignore-unfixed: true
+
+      - name: Upload Trivy results (SARIF)
+        if: always()
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: "campus-connect-api:ci"
           format: "sarif"
           output: "trivy-results.sarif"
           severity: "CRITICAL,HIGH"
 
-      - name: Upload Trivy results
+      - name: Upload SARIF to GitHub
         if: always()
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: "trivy-results.sarif"
+
+  deploy-staging:
+    name: Deploy — Staging
+    runs-on: ubuntu-latest
+    needs: [lint-backend, test-backend, lint-frontend, build-frontend, docker-build]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: staging
+    concurrency: deploy-staging
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to staging
+        run: |
+          echo "TODO: Add deployment commands for your hosting provider"
+          echo "Examples:"
+          echo "  - Railway: railway up --service staging"
+          echo "  - Render: curl -X POST \$RENDER_DEPLOY_HOOK"
+          echo "  - Fly.io: fly deploy --config fly.toml --app campus-connect-staging"
+        env:
+          DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}

@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 import secrets
 from datetime import datetime, timedelta, timezone
@@ -7,25 +8,56 @@ import jwt
 from jwt.exceptions import InvalidTokenError as JWTError
 
 from app.config import get_settings
-from app.core.exceptions import UnauthorizedException
+from app.core.exceptions import UnauthorizedException, BadRequestException
 
 settings = get_settings()
 
 # ── Password hashing ─────────────────────────────────────────────────
 
+# bcrypt silently truncates passwords at 72 bytes.  Rather than letting
+# two passwords that differ only after byte 72 compare as equal, we
+# reject over-long passwords explicitly.
+_BCRYPT_MAX_BYTES = 72
+
 
 def hash_password(password: str) -> str:
-    """Hash a plain-text password using bcrypt."""
-    password_bytes = password.encode("utf-8")[:72]  # bcrypt 72-byte limit
+    """Hash a plain-text password using bcrypt.
+
+    Raises ``BadRequestException`` if the password exceeds 72 bytes
+    (the bcrypt block size), preventing silent truncation.
+    """
+    password_bytes = password.encode("utf-8")
+    if len(password_bytes) > _BCRYPT_MAX_BYTES:
+        raise BadRequestException(
+            detail=f"Password must not exceed {_BCRYPT_MAX_BYTES} characters.",
+        )
     salt = bcrypt.gensalt()
     return bcrypt.hashpw(password_bytes, salt).decode("utf-8")
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a plain-text password against a bcrypt hash."""
-    password_bytes = plain_password.encode("utf-8")[:72]
+    password_bytes = plain_password.encode("utf-8")[:_BCRYPT_MAX_BYTES]
     hashed_bytes = hashed_password.encode("utf-8")
     return bcrypt.checkpw(password_bytes, hashed_bytes)
+
+
+# ── Async wrappers ────────────────────────────────────────────────────
+#
+# bcrypt is deliberately slow (~100ms per hash) and CPU-bound.  Calling the
+# sync helpers directly from an async route blocks the event loop for that
+# window, stalling every other in-flight request on the worker.  These
+# wrappers move the work onto a thread so the event loop stays responsive.
+
+
+async def hash_password_async(password: str) -> str:
+    """Async bcrypt hash — offloads the CPU-bound work to a thread."""
+    return await asyncio.to_thread(hash_password, password)
+
+
+async def verify_password_async(plain_password: str, hashed_password: str) -> bool:
+    """Async bcrypt verify — offloads the CPU-bound work to a thread."""
+    return await asyncio.to_thread(verify_password, plain_password, hashed_password)
 
 
 # ── JWT tokens ────────────────────────────────────────────────────────

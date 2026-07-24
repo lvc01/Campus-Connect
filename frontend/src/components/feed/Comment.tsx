@@ -6,12 +6,14 @@ import { toast } from "sonner";
 import { Flag } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import { Avatar } from "@/components/Avatar";
+import { RoleBadge } from "@/components/RoleBadge";
 import { apiClient } from "@/lib/api-client";
 import { ReportModal } from "@/components/report-modal";
 
 interface CommentAuthor {
   id: string;
   email: string;
+  role?: string;
   profile?: {
     display_name?: string | null;
     avatar_url?: string | null;
@@ -112,8 +114,9 @@ function CommentItem({
           </Link>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <Link href={`/profile/${comment.author_id}`} className="text-xs font-semibold text-text-primary hover:underline">
+              <Link href={`/profile/${comment.author_id}`} className="flex items-center gap-1.5 text-xs font-semibold text-text-primary hover:underline">
                 {authorName}
+                {comment.author.role && <RoleBadge role={comment.author.role} hideStudent size={11} />}
               </Link>
               <span className="text-[11px] text-text-secondary">
                 {new Date(comment.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}

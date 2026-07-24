@@ -1,11 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import NextLink from "next/link";
 import { Inbox } from "lucide-react";
 import { PostCard } from "./PostCard";
 import type { PostData } from "@/types/post";
 import { AdCard } from "./AdCard";
-import { EmptyState } from "./EmptyState";
+import { FeedSkeletonList } from "./feed-skeleton-list";
 import { apiClient } from "@/lib/api-client";
 
 interface FeedProps {
@@ -17,6 +18,7 @@ export function Feed({ tab }: FeedProps) {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 10;
+  const SKELETON_COUNT = 6;
 
   const fetchPosts = useCallback(async () => {
     setLoading(true);
@@ -34,27 +36,36 @@ export function Feed({ tab }: FeedProps) {
   }, [tab]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPage(1);
     fetchPosts();
   }, [fetchPosts]);
 
   if (loading) {
-    return (
-      <div className="py-8 text-center text-body-sm text-text-secondary">
-        Loading posts...
-      </div>
-    );
+    return <FeedSkeletonList count={SKELETON_COUNT} />;
   }
 
   const visible = posts.slice(0, page * PAGE_SIZE);
 
   if (visible.length === 0) {
     return (
-      <EmptyState
-        icon={Inbox}
-        title="No posts yet"
-        description="Be the first to share something with your campus community."
-      />
+      <div className="flex flex-col items-center justify-center py-16 px-6 text-center animate-pop-in">
+        <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-surface text-text-secondary">
+          <Inbox className="h-7 w-7" />
+        </span>
+        <h3 className="mt-4 font-display text-h2 font-medium text-text-primary leading-tight">
+          Your campus, soon to be loud.
+        </h3>
+        <p className="mt-1.5 text-body-sm text-text-secondary max-w-[360px] leading-relaxed">
+          Join a few clubs or post what&apos;s happening on campus to start your feed.
+        </p>
+        <NextLink
+          href="/clubs"
+          className="mt-6 inline-flex items-center rounded-full bg-accent px-5 py-2 font-sans text-body-sm font-semibold text-accent-foreground transition-all hover:bg-accent-press hover:shadow-md hover:shadow-accent/25 active:scale-95"
+        >
+          Browse clubs
+        </NextLink>
+      </div>
     );
   }
 
@@ -63,8 +74,8 @@ export function Feed({ tab }: FeedProps) {
       {visible.map((post, i) => (
         <div
           key={post.id}
-          className="animate-fade-in"
-          style={{ animationDelay: `${Math.min(i * 40, 300)}ms` }}
+          className={i < 6 ? "reveal-up" : undefined}
+          style={i < 6 ? { animationDelay: `${Math.min(i * 60, 360)}ms` } : undefined}
         >
           <PostCard
             post={post}
@@ -78,10 +89,10 @@ export function Feed({ tab }: FeedProps) {
         </div>
       ))}
       {visible.length < posts.length && (
-        <div className="py-4 text-center">
+        <div className="py-6 text-center">
           <button
             onClick={() => setPage((p) => p + 1)}
-            className="text-body-sm font-semibold text-accent hover:opacity-80 transition-opacity"
+            className="font-sans text-caption text-text-secondary transition-colors hover:text-accent"
           >
             Load more
           </button>
@@ -90,3 +101,4 @@ export function Feed({ tab }: FeedProps) {
     </div>
   );
 }
+

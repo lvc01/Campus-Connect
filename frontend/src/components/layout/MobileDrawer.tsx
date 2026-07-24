@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Shield, Sparkles, X } from "lucide-react";
+import { Shield, X } from "lucide-react";
 import { useEffect } from "react";
 import { navItems } from "./nav-config";
 import { useAuth } from "@/context/auth-context";
@@ -59,8 +60,14 @@ export function MobileDrawer({
       >
         <div className="mb-4 flex items-center justify-between">
           <Link href="/" onClick={onClose} className="flex items-center gap-2">
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent text-accent-foreground">
-              <Sparkles className="h-5 w-5" />
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent overflow-hidden">
+              <Image
+                src="/logo-white.png"
+                alt="Campus Connect"
+                width={36}
+                height={36}
+                className="object-contain"
+              />
             </span>
             <span className="text-h3 font-bold text-text-primary">
               Campus Connect

@@ -109,9 +109,71 @@ class EventService:
           )
       )
 
-    # Order chronologically
     query = query.order_by(Event.start_time.asc())
+    result = await db.execute(query)
+    return list(result.scalars().all())
 
+  async def get_upcoming_events(
+      self,
+      db: AsyncSession,
+      now: datetime,
+      club_id: uuid.UUID | None = None,
+      status: EventStatus | None = None,
+      search: str | None = None,
+  ) -> list[Event]:
+    """Retrieve events that haven't ended yet."""
+    query = select(Event).options(
+        selectinload(Event.organizer).selectinload(User.profile),
+        selectinload(Event.club),
+    ).where(Event.deleted_at.is_(None), Event.end_time >= now)
+
+    if club_id:
+      query = query.where(Event.club_id == club_id)
+    if status:
+      query = query.where(Event.status == status)
+    if search:
+      search_term = f"%{search.strip()}%"
+      query = query.where(
+          or_(
+              Event.title.ilike(search_term),
+              Event.description.ilike(search_term),
+              Event.location.ilike(search_term),
+          )
+      )
+
+    query = query.order_by(Event.start_time.asc())
+    result = await db.execute(query)
+    return list(result.scalars().all())
+
+  async def get_past_events(
+      self,
+      db: AsyncSession,
+      now: datetime,
+      club_id: uuid.UUID | None = None,
+      status: EventStatus | None = None,
+      search: str | None = None,
+  ) -> list[Event]:
+    """Retrieve events that have already ended."""
+    query = select(Event).options(
+        selectinload(Event.organizer).selectinload(User.profile),
+        selectinload(Event.club),
+    ).where(Event.deleted_at.is_(None), Event.end_time < now)
+
+    if club_id:
+      query = query.where(Event.club_id == club_id)
+    if status:
+      query = query.where(Event.status == status)
+    if search:
+      search_term = f"%{search.strip()}%"
+      query = query.where(
+          or_(
+              Event.title.ilike(search_term),
+              Event.description.ilike(search_term),
+              Event.location.ilike(search_term),
+          )
+      )
+
+    query = query.order_by(Event.start_time.desc())
     result = await db.execute(query)
     return list(result.scalars().all())
 
@@ -305,7 +367,10 @@ class EventService:
       event.rsvp_limit = data.rsvp_limit
 
     await db.flush()
-    return event
+
+    # Re-fetch with relationships loaded for serialization
+    refreshed = await self.get_event_by_id(event.id, db)
+    return refreshed if refreshed else event
 
 
 def get_event_service() -> EventService:

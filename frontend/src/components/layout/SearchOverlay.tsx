@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Search, X, User as UserIcon, Users, Calendar, ShoppingBag, MessageSquare } from "lucide-react";
 import { SEARCH_OPEN_EVENT } from "@/lib/compose-events";
@@ -77,6 +77,7 @@ export function SearchOverlay() {
 
   useEffect(() => {
     if (!term || term.length < 2) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setResults(null);
       return;
     }

@@ -35,7 +35,6 @@ export const navItems: NavItem[] = [
 
 export const mobileNavItems: NavItem[] = [
   { label: "Home", to: "/", icon: Home },
-  { label: "Explore", to: "/", icon: Search, isSearch: true },
   { label: "Notifications", to: "/notifications", icon: Bell },
   { label: "Messages", to: "/messages", icon: Mail },
 ];

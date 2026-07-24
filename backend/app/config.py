@@ -91,6 +91,10 @@ class Settings(BaseSettings):
     S3_BUCKET_NAME: str | None = None
     S3_PUBLIC_URL_PREFIX: str | None = None
 
+    # ── Meilisearch ───────────────────────────────────────────────────
+    MEILI_HOST: str | None = None
+    MEILI_API_KEY: str | None = None
+
     # ── App ───────────────────────────────────────────────────────────
     APP_NAME: str = "CU Campus Connect"
     ENVIRONMENT: str = "development"
@@ -103,6 +107,56 @@ class Settings(BaseSettings):
                 "DEBUG must be False when ENVIRONMENT=production. "
                 "Set DEBUG=false in your .env file."
             )
+        return self
+
+    @model_validator(mode="after")
+    def _production_invariants(self) -> "Settings":
+        """Enforce production-only safety invariants.
+
+        These prevent accidental misconfigurations that would expose
+        development-only features (console OTP, local storage, default
+        DB credentials) in a production environment.
+        """
+        if self.ENVIRONMENT != "production":
+            return self
+
+        errors: list[str] = []
+
+        if self.OTP_DELIVERY_METHOD == "console":
+            errors.append(
+                "OTP_DELIVERY_METHOD cannot be 'console' in production — "
+                "set it to 'smtp' so real emails are sent."
+            )
+
+        if self.STORAGE_PROVIDER == "local":
+            errors.append(
+                "STORAGE_PROVIDER must be 's3' in production — "
+                "local file storage is not suitable for multi-instance deploys."
+            )
+
+        if not self.REDIS_ENABLED:
+            errors.append(
+                "REDIS_ENABLED must be true in production — "
+                "rate limiting and WebSocket pub/sub require Redis."
+            )
+
+        if "postgres:password@" in self.DATABASE_URL:
+            errors.append(
+                "DATABASE_URL contains default credentials in production — "
+                "set a strong POSTGRES_PASSWORD."
+            )
+
+        if self.DATABASE_URL == "postgresql+asyncpg://postgres:password@localhost:5432/campus_connect":
+            errors.append(
+                "DATABASE_URL is still the development default — "
+                "set a production database URL."
+            )
+
+        if errors:
+            raise ValueError(
+                "Production configuration errors:\n" + "\n".join(f"  - {e}" for e in errors)
+            )
+
         return self
 
     # ── Derived properties ────────────────────────────────────────────

@@ -156,7 +156,11 @@ class MessagingService:
 
         query = (
             select(Message)
-            .options(selectinload(Message.sender).selectinload(User.profile))
+            .options(
+                selectinload(Message.sender).selectinload(User.profile),
+                selectinload(Message.reply_to).selectinload(Message.sender).selectinload(User.profile),
+                selectinload(Message.reactions),
+            )
             .where(
                 Message.conversation_id == conversation_id,
                 Message.deleted_at.is_(None),
@@ -215,6 +219,7 @@ class MessagingService:
             content=data.content.strip() if data.content else None,
             message_type=data.message_type,
             file_url=data.file_url.strip() if data.file_url else None,
+            reply_to_message_id=data.reply_to_message_id,
         )
         db.add(msg)
 
@@ -228,7 +233,11 @@ class MessagingService:
 
         result = await db.execute(
             select(Message)
-            .options(selectinload(Message.sender).selectinload(User.profile))
+            .options(
+                selectinload(Message.sender).selectinload(User.profile),
+                selectinload(Message.reply_to).selectinload(Message.sender).selectinload(User.profile),
+                selectinload(Message.reactions),
+            )
             .where(Message.id == msg.id)
         )
         return result.scalar_one()
@@ -238,7 +247,7 @@ class MessagingService:
         conversation_id: uuid.UUID,
         user_id: uuid.UUID,
         db: AsyncSession,
-    ) -> None:
+    ) -> datetime:
         membership = await db.execute(
             select(ConversationMember).where(
                 ConversationMember.conversation_id == conversation_id,
@@ -250,6 +259,7 @@ class MessagingService:
             raise NotFoundException(detail="Conversation not found.")
         member.last_read_at = datetime.now(timezone.utc)
         await db.flush()
+        return member.last_read_at
 
     async def get_last_message(
         self,
@@ -273,45 +283,48 @@ class MessagingService:
         user_id: uuid.UUID,
         db: AsyncSession,
     ) -> dict[str, int]:
-        memberships = await db.execute(
-            select(ConversationMember)
-            .where(ConversationMember.user_id == user_id)
-        )
-        rows = memberships.scalars().all()
+        """Count unread (non-own, live) messages per conversation in ONE query.
 
-        total = 0
-        conv_counts: dict[str, int] = {}
-        for m in rows:
-            read_at = m.last_read_at
-            count_result = await db.execute(
-                select(func.count())
-                .select_from(Message)
-                .where(
-                    Message.conversation_id == m.conversation_id,
+        Previously this issued 1–2 ``COUNT`` queries *per conversation* a user
+        belonged to — 100+ queries for someone in 50 group chats. We now join
+        memberships to messages once and group by conversation.
+
+        A message is "unread" if it was sent by someone else, is not deleted,
+        and either the member has no ``last_read_at`` yet, or it was created
+        after that timestamp.
+        """
+        is_unread = or_(
+            ConversationMember.last_read_at.is_(None),
+            Message.created_at > ConversationMember.last_read_at,
+        )
+
+        result = await db.execute(
+            select(
+                ConversationMember.conversation_id,
+                func.count(Message.id).label("unread"),
+            )
+            .select_from(ConversationMember)
+            .join(
+                Message,
+                and_(
+                    Message.conversation_id == ConversationMember.conversation_id,
                     Message.sender_id != user_id,
                     Message.deleted_at.is_(None),
-                )
+                    is_unread,
+                ),
+                isouter=True,
             )
-            total_msgs = count_result.scalar() or 0
+            .where(ConversationMember.user_id == user_id)
+            .group_by(ConversationMember.conversation_id)
+        )
 
-            if read_at:
-                unread_result = await db.execute(
-                    select(func.count())
-                    .select_from(Message)
-                    .where(
-                        Message.conversation_id == m.conversation_id,
-                        Message.sender_id != user_id,
-                        Message.deleted_at.is_(None),
-                        Message.created_at > read_at,
-                    )
-                )
-                unread = unread_result.scalar() or 0
-            else:
-                unread = total_msgs
-
-            if unread > 0:
-                total += unread
-                conv_counts[str(m.conversation_id)] = unread
+        conv_counts: dict[str, int] = {}
+        total = 0
+        for conv_id, unread in result.all():
+            count = int(unread or 0)
+            if count > 0:
+                conv_counts[str(conv_id)] = count
+                total += count
 
         return {"total": total, "conversations": conv_counts}
 
@@ -391,6 +404,16 @@ class MessagingService:
             await db.delete(existing)
             await db.flush()
         else:
+            # Remove any existing reaction from this user on this message (one reaction per user)
+            old_result = await db.execute(
+                select(MessageReaction).where(
+                    MessageReaction.message_id == message_id,
+                    MessageReaction.user_id == user_id,
+                )
+            )
+            for old in old_result.scalars().all():
+                await db.delete(old)
+            await db.flush()
             reaction = MessageReaction(
                 message_id=message_id,
                 user_id=user_id,

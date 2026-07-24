@@ -31,10 +31,10 @@ export function NotificationDropdown({ onClose }: NotificationDropdownProps) {
   return (
     <div
       ref={dropdownRef}
-      className="absolute top-full right-0 mt-2 w-80 sm:w-96 bg-bg-surface border border-border shadow-2xl shadow-black/50 z-50 overflow-hidden"
+      className="absolute top-full right-0 mt-2 w-80 sm:w-96 bg-surface border border-border shadow-2xl shadow-black/50 z-50 overflow-hidden"
     >
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-        <h3 className="text-sm font-bold text-text-primary">Notifications</h3>
+        <h3 className="font-display text-body-sm font-medium text-text-primary">Notifications</h3>
         <div className="flex items-center gap-3">
           {unreadCount > 0 && (
             <button
@@ -61,19 +61,19 @@ export function NotificationDropdown({ onClose }: NotificationDropdownProps) {
           <div className="p-4 space-y-3 animate-pulse">
             {[1, 2, 3].map((i) => (
               <div key={i} className="flex gap-3 items-start">
-                <div className="w-8 h-8 bg-bg-elevated rounded-lg" />
+                <div className="w-8 h-8 bg-surface rounded-lg" />
                 <div className="flex-1 space-y-2">
-                  <div className="h-3 bg-bg-elevated rounded w-3/4" />
-                  <div className="h-2 bg-bg-elevated rounded w-1/2" />
+                  <div className="h-3 bg-surface rounded w-3/4" />
+                  <div className="h-2 bg-surface rounded w-1/2" />
                 </div>
               </div>
             ))}
           </div>
         ) : notifications.length === 0 ? (
           <div className="p-8 text-center">
-            <Bell className="h-8 w-8 text-text-muted mx-auto mb-3" strokeWidth={2} />
+            <Bell className="h-8 w-8 text-text-tertiary mx-auto mb-3" strokeWidth={2} />
             <p className="text-sm text-text-secondary">No notifications yet</p>
-            <p className="text-xs text-text-muted mt-1">When someone interacts with your content, it will appear here.</p>
+            <p className="text-xs text-text-tertiary mt-1">When someone interacts with your content, it will appear here.</p>
           </div>
         ) : (
           <div className="p-2">

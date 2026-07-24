@@ -109,9 +109,12 @@ async def test_verify_otp_success(client: AsyncClient, db_session: AsyncSession)
         json={"email": "otptest@cuchd.in", "code": "123456"},
     )
     assert response.status_code == 200
+    # Tokens are delivered via httpOnly Set-Cookie headers, not in the body
+    # (consistent with the cookie-based auth migration).
+    set_cookies = response.headers.get_list("set-cookie")
+    assert any("cc_access_token=" in h for h in set_cookies), "Access token cookie missing"
+    assert any("cc_refresh_token=" in h for h in set_cookies), "Refresh token cookie missing"
     data = response.json()
-    assert "access_token" in data
-    assert "refresh_token" in data
     assert data["user"]["is_verified"] is True
 
 
@@ -185,9 +188,11 @@ async def test_login_success(client: AsyncClient, test_user: User):
         json={"email": "testuser@cuchd.in", "password": "TestPass123"},
     )
     assert response.status_code == 200
+    # Tokens are delivered via httpOnly Set-Cookie headers, not in the body.
+    set_cookies = response.headers.get_list("set-cookie")
+    assert any("cc_access_token=" in h for h in set_cookies), "Access token cookie missing"
+    assert any("cc_refresh_token=" in h for h in set_cookies), "Refresh token cookie missing"
     data = response.json()
-    assert "access_token" in data
-    assert "refresh_token" in data
     assert data["user"]["email"] == "testuser@cuchd.in"
 
 
@@ -215,24 +220,36 @@ async def test_login_wrong_password(client: AsyncClient, test_user: User):
 
 @pytest.mark.asyncio
 async def test_refresh_token_success(client: AsyncClient, test_user: User):
-    """Valid refresh token should return a new token pair."""
+    """Valid refresh token in cookie should return new token pair in Set-Cookie headers."""
     # First, login to get a real refresh token via the API
     login_response = await client.post(
         "/api/v1/auth/login",
         json={"email": "testuser@cuchd.in", "password": "TestPass123"},
     )
-    assert login_response.status_code == 200
-    refresh_token = login_response.json()["refresh_token"]
+    assert login_response.status_code == 200, f"Login failed: {login_response.status_code} {login_response.text}"
 
-    # Now use the refresh token to get a new pair
+    # Extract refresh token from Set-Cookie headers
+    set_cookie_headers = login_response.headers.get_list("set-cookie")
+    refresh_cookie = None
+    for header in set_cookie_headers:
+        if header.startswith("cc_refresh_token="):
+            refresh_cookie = header.split("=", 1)[1].split(";")[0]
+            break
+
+    assert refresh_cookie, f"Refresh token cookie not found. Set-Cookie headers: {set_cookie_headers}"
+
+    # Refresh using the cookie — new tokens are returned via Set-Cookie headers
     response = await client.post(
         "/api/v1/auth/refresh",
-        json={"refresh_token": refresh_token},
+        headers={"Cookie": f"cc_refresh_token={refresh_cookie}"},
     )
-    assert response.status_code == 200
-    data = response.json()
-    assert "access_token" in data
-    assert "refresh_token" in data
+    assert response.status_code == 200, f"Refresh failed: {response.status_code} {response.text}"
+    # Tokens are now in Set-Cookie headers, not in JSON body
+    new_cookies = response.headers.get_list("set-cookie")
+    has_new_access = any("cc_access_token=" in h for h in new_cookies)
+    has_new_refresh = any("cc_refresh_token=" in h for h in new_cookies)
+    assert has_new_access, "New access token cookie should be set"
+    assert has_new_refresh, "New refresh token cookie should be set"
 
 
 # ── Protected routes ──────────────────────────────────────────────────

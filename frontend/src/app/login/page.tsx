@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/auth-context";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { AuthShell } from "@/components/auth/AuthShell";
+import { AuthCard } from "@/components/auth/AuthCard";
 import { getApiErrorMessage } from "@/lib/api-error";
 
 export default function LoginPage() {
@@ -50,23 +52,12 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex-1 flex flex-col justify-center items-center px-4 py-12 bg-bg-main">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-accent text-text-inverse mb-6 shadow-lg shadow-accent/20">
-            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <path d="M12 8v8M8 12h8" strokeWidth="2.5" />
-            </svg>
-          </div>
-          <h1 className="text-3xl font-bold text-text-main">Sign in to Campus Connect</h1>
-          <p className="mt-2 text-sm text-text-muted">Log in to your Chandigarh University campus network</p>
-        </div>
-
-        {errors.form && (
-          <div className="mb-6 p-4 rounded-xl bg-error/10 border border-error/20 text-sm font-semibold text-error text-center">{errors.form}</div>
-        )}
-
+    <AuthShell>
+      <AuthCard
+        title="Welcome back."
+        subtitle={<>Log in to your Chandigarh University campus network.</>}
+        error={errors.form}
+      >
         <form onSubmit={handleSubmit} className="space-y-5">
           <Input
             label="University email"
@@ -93,23 +84,23 @@ export default function LoginPage() {
           />
 
           <div className="text-right -mt-3">
-            <Link href="/forgot-password" className="text-xs font-semibold text-accent hover:underline">
+            <Link href="/forgot-password" className="font-sans text-caption font-semibold text-accent hover:underline">
               Forgot password?
             </Link>
           </div>
 
-          <Button type="submit" isLoading={isLoading} fullWidth className="mt-2">
+          <Button type="submit" isLoading={isLoading} fullWidth className="mt-2 py-3">
             Log in
           </Button>
         </form>
 
-        <p className="mt-8 text-center text-sm text-text-muted">
+        <p className="mt-8 text-center font-sans text-body-sm text-text-secondary">
           Don&apos;t have an account?{" "}
           <Link href="/register" className="font-semibold text-accent hover:underline">
             Sign up
           </Link>
         </p>
-      </div>
-    </div>
+      </AuthCard>
+    </AuthShell>
   );
 }

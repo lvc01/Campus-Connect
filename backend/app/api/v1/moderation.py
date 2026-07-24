@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.core.dependencies import get_current_user, require_role
+from app.core.dependencies import get_current_user, get_current_user_allow_inactive, require_role
 from app.models.user import User, UserRole
 from app.models.moderation import ReportCategory, ReportPriority, ReportStatus, ReportTargetType, AppealStatus
 from app.schemas.common import MessageResponse
@@ -46,6 +46,28 @@ async def create_report(
 ) -> MessageResponse:
     await service.create_report(current_user.id, data, db)
     return MessageResponse(message="Report submitted.")
+
+
+@router.post(
+    "/reports/{report_id}/appeal",
+    response_model=MessageResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="File an appeal against a moderation outcome",
+)
+async def create_appeal(
+    report_id: uuid.UUID,
+    data: AppealCreate,
+    current_user: User = Depends(get_current_user_allow_inactive),
+    db: AsyncSession = Depends(get_db),
+) -> MessageResponse:
+    """File an appeal. Reachable even by suspended users (who need it most).
+
+    Uses ``get_current_user_allow_inactive`` rather than ``get_current_user``
+    so a deactivated/suspended account can still authenticate and contest the
+    action. Ownership (reporter or target) is enforced in the service layer.
+    """
+    await service.create_appeal(report_id, current_user.id, data.reason, db)
+    return MessageResponse(message="Appeal submitted.")
 
 
 # ── Moderator-only endpoints ─────────────────────────────────────────
@@ -242,11 +264,6 @@ async def toggle_hidden(report_id: uuid.UUID, data: dict, current_user: User = D
 async def escalate_report(report_id: uuid.UUID, data: dict, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)) -> ReportOut:
     report = await service.escalate_report(report_id, ReportPriority(data["priority"]), current_user.id, db)
     return ReportOut.model_validate(report)
-
-@mod_router.post("/reports/{report_id}/appeal", response_model=MessageResponse, status_code=status.HTTP_201_CREATED, summary="File an appeal")
-async def create_appeal(report_id: uuid.UUID, data: AppealCreate, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)) -> MessageResponse:
-    await service.create_appeal(report_id, current_user.id, data.reason, db)
-    return MessageResponse(message="Appeal submitted.")
 
 @mod_router.get("/appeals", response_model=AppealListResponse, summary="List appeals (moderator+)")
 async def list_appeals(status: AppealStatus | None = Query(default=None), cursor: str | None = Query(default=None), limit: int = Query(default=20, ge=1, le=100), current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)) -> AppealListResponse:

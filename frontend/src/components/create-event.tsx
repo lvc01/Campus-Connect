@@ -24,7 +24,7 @@ export interface CreateEventPayload {
   club_id: string | null;
 }
 
-interface CreatedEvent extends CreateEventPayload {
+export interface CreatedEvent extends CreateEventPayload {
   id: string;
   status: string;
   organizer_id: string;
@@ -38,7 +38,7 @@ interface CreatedEvent extends CreateEventPayload {
 interface CreateEventProps {
   isOpen: boolean;
   onClose: () => void;
-  onEventCreated: (event: CreatedEvent) => void;
+  onEventCreated: (event: CreatedEvent | Record<string, unknown>) => void;
 }
 
 export const CreateEvent: React.FC<CreateEventProps> = ({
@@ -127,12 +127,12 @@ export const CreateEvent: React.FC<CreateEventProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-fade-in">
-      <div className="w-full max-w-lg bg-bg-surface border border-border rounded-3xl p-6 sm:p-8 animate-pop-in relative border border-border bg-bg-main shadow-2xl overflow-y-auto max-h-[90vh]">
+      <div className="w-full max-w-lg bg-surface border border-border rounded-3xl p-6 sm:p-8 animate-pop-in relative border border-border bg-background shadow-2xl overflow-y-auto max-h-[90vh]">
         {/* Close Button */}
         <button
           type="button"
           onClick={onClose}
-          className="absolute right-6 top-6 p-2 rounded-xl text-text-muted hover:text-accent hover:bg-[rgba(var(--bg-hover),0.08)] focus:outline-none transition-colors"
+          className="absolute right-6 top-6 p-2 rounded-xl text-text-tertiary hover:text-accent hover:bg-[rgba(var(--bg-hover),0.08)] focus:outline-none transition-colors"
           aria-label="Close modal"
         >
           <svg
@@ -149,8 +149,8 @@ export const CreateEvent: React.FC<CreateEventProps> = ({
         </button>
 
         <div className="mb-6">
-          <h2 className="text-2xl font-bold tracking-tight text-text-main">Create Campus Event</h2>
-          <p className="text-text-muted text-xs mt-1.5 font-medium">
+          <h2 className="text-2xl font-bold tracking-tight text-text-primary">Create Campus Event</h2>
+          <p className="text-text-tertiary text-xs mt-1.5 font-medium">
             Publish an upcoming workshop, tournament, social gathering, or talk.
           </p>
         </div>
@@ -167,7 +167,7 @@ export const CreateEvent: React.FC<CreateEventProps> = ({
             <div className="flex flex-col gap-2">
               <label
                 htmlFor="event-host"
-                className="text-sm font-semibold text-text-main"
+                className="text-sm font-semibold text-text-primary"
               >
                 Host as
               </label>
@@ -175,7 +175,7 @@ export const CreateEvent: React.FC<CreateEventProps> = ({
                 id="event-host"
                 value={clubId}
                 onChange={(e) => setClubId(e.target.value)}
-                className="w-full h-12 px-4 rounded-xl bg-bg-surface border border-border focus:border-accent focus:ring-4 focus:ring-accent/20 text-text-main font-medium text-sm transition-all duration-200 outline-none cursor-pointer"
+                className="w-full h-12 px-4 rounded-xl bg-surface border border-border focus:border-accent focus:ring-4 focus:ring-accent/20 text-text-primary font-medium text-sm transition-all duration-200 outline-none cursor-pointer"
               >
                 <option value="">Independent Student (Personal Event)</option>
                 {myClubs.map((club) => (
@@ -201,7 +201,7 @@ export const CreateEvent: React.FC<CreateEventProps> = ({
           {/* Date & Time Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="flex flex-col gap-2">
-              <label htmlFor="start-time" className="text-sm font-semibold text-text-main">
+              <label htmlFor="start-time" className="text-sm font-semibold text-text-primary">
                 Start Time *
               </label>
               <input
@@ -210,11 +210,11 @@ export const CreateEvent: React.FC<CreateEventProps> = ({
                 value={startTime}
                 onChange={(e) => setStartTime(e.target.value)}
                 required
-                className="w-full h-12 px-4 rounded-xl bg-bg-surface border border-border focus:border-accent focus:ring-4 focus:ring-accent/20 text-text-main font-medium text-sm transition-all duration-200 outline-none"
+                className="w-full h-12 px-4 rounded-xl bg-surface border border-border focus:border-accent focus:ring-4 focus:ring-accent/20 text-text-primary font-medium text-sm transition-all duration-200 outline-none"
               />
             </div>
             <div className="flex flex-col gap-2">
-              <label htmlFor="end-time" className="text-sm font-semibold text-text-main">
+              <label htmlFor="end-time" className="text-sm font-semibold text-text-primary">
                 End Time (Optional)
               </label>
               <input
@@ -222,7 +222,7 @@ export const CreateEvent: React.FC<CreateEventProps> = ({
                 id="end-time"
                 value={endTime}
                 onChange={(e) => setEndTime(e.target.value)}
-                className="w-full h-12 px-4 rounded-xl bg-bg-surface border border-border focus:border-accent focus:ring-4 focus:ring-accent/20 text-text-main font-medium text-sm transition-all duration-200 outline-none"
+                className="w-full h-12 px-4 rounded-xl bg-surface border border-border focus:border-accent focus:ring-4 focus:ring-accent/20 text-text-primary font-medium text-sm transition-all duration-200 outline-none"
               />
             </div>
           </div>
@@ -241,7 +241,7 @@ export const CreateEvent: React.FC<CreateEventProps> = ({
           <div className="flex flex-col gap-2">
             <label
               htmlFor="event-description"
-              className="text-sm font-semibold text-text-main"
+              className="text-sm font-semibold text-text-primary"
             >
               Description
             </label>
@@ -250,7 +250,7 @@ export const CreateEvent: React.FC<CreateEventProps> = ({
               placeholder="Detail what attendees should expect, prerequisites, schedules, guest speakers..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full min-h-[100px] p-4 rounded-xl bg-bg-surface border border-border focus:border-accent focus:ring-4 focus:ring-accent/20 text-text-main font-medium text-sm placeholder:text-text-muted transition-all duration-200 outline-none resize-none"
+              className="w-full min-h-[100px] p-4 rounded-xl bg-surface border border-border focus:border-accent focus:ring-4 focus:ring-accent/20 text-text-primary font-medium text-sm placeholder:text-text-tertiary transition-all duration-200 outline-none resize-none"
               maxLength={5000}
             />
           </div>
@@ -267,11 +267,11 @@ export const CreateEvent: React.FC<CreateEventProps> = ({
           />
 
           {/* RSVP and Capacity Limit */}
-          <div className="p-4 rounded-2xl bg-bg-surface/50 border border-border space-y-4">
+          <div className="p-4 rounded-2xl bg-surface/50 border border-border space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <span className="text-sm font-semibold text-text-main">Limit Attendance Capacity</span>
-                <p className="text-text-muted text-xs mt-0.5">
+                <span className="text-sm font-semibold text-text-primary">Limit Attendance Capacity</span>
+                <p className="text-text-tertiary text-xs mt-0.5">
                   Cap RSVPs to avoid overbooking small rooms.
                 </p>
               </div>

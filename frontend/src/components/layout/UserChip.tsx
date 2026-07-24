@@ -4,6 +4,7 @@ import Link from "next/link";
 import { LogOut } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import { Avatar } from "@/components/Avatar";
+import { RoleBadge } from "@/components/RoleBadge";
 import { cn } from "@/lib/utils";
 
 export function UserChip({
@@ -32,6 +33,11 @@ export function UserChip({
             <p className="truncate text-sm font-semibold text-text-primary">
               {displayName}
             </p>
+            {user.role && (
+              <div className="mt-0.5">
+                <RoleBadge role={user.role} size={12} />
+              </div>
+            )}
             <p className="truncate text-xs text-text-secondary">
               @{user.email?.split("@")[0]}
             </p>

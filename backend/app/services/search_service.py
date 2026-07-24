@@ -1,3 +1,5 @@
+import asyncio
+import logging
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -7,7 +9,16 @@ from app.models.event import Event
 from app.models.marketplace import MarketplaceListing
 from app.models.post import Post
 from app.models.user import Profile, User
+from app.services.meilisearch_service import (
+    INDEX_USERS,
+    INDEX_POSTS,
+    INDEX_CLUBS,
+    INDEX_EVENTS,
+    INDEX_LISTINGS,
+    get_meilisearch_client,
+)
 
+logger = logging.getLogger(__name__)
 
 GLOBAL_SEARCH_LIMIT = 5
 
@@ -21,13 +32,17 @@ class SearchService:
         if not q or len(q.strip()) < 2:
             return {"users": [], "posts": [], "clubs": [], "events": [], "listings": []}
 
-        term = f"%{q.strip()}%"
+        client = get_meilisearch_client()
+        if client is not None:
+            return await self._search_meilisearch(q.strip(), client)
 
-        users = await self._search_users(term, db)
-        posts = await self._search_posts(term, db)
-        clubs = await self._search_clubs(term, db)
-        events = await self._search_events(term, db)
-        listings = await self._search_listings(term, db)
+        # Fallback to ILIKE-based SQL search
+        term = f"%{q.strip()}%"
+        users = await self._search_users_sql(term, db)
+        posts = await self._search_posts_sql(term, db)
+        clubs = await self._search_clubs_sql(term, db)
+        events = await self._search_events_sql(term, db)
+        listings = await self._search_listings_sql(term, db)
 
         return {
             "users": users,
@@ -37,7 +52,93 @@ class SearchService:
             "listings": listings,
         }
 
-    async def _search_users(self, term: str, db: AsyncSession) -> list[dict]:
+    # ── Meilisearch search ──────────────────────────────────────────────
+
+    async def _search_meilisearch(self, q: str, client) -> dict:
+        """Search all indexes via Meilisearch.
+
+        The Meilisearch Python client's ``search()`` is a *synchronous*
+        blocking call. Running it directly on the event loop would freeze
+        every other in-flight request for the duration of the (5) index
+        lookups. We offload each call to a thread via ``asyncio.to_thread``
+        and run them concurrently.
+        """
+        limit = GLOBAL_SEARCH_LIMIT
+
+        def _search_index(index_uid: str):
+            try:
+                results = client.index(index_uid).search(q, limit=limit)
+                return results.hits or []
+            except Exception as e:
+                logger.warning("Meilisearch search failed for %s: %s", index_uid, e)
+                return []
+
+        users, posts, clubs, events, listings = await asyncio.gather(
+            asyncio.to_thread(_search_index, INDEX_USERS),
+            asyncio.to_thread(_search_index, INDEX_POSTS),
+            asyncio.to_thread(_search_index, INDEX_CLUBS),
+            asyncio.to_thread(_search_index, INDEX_EVENTS),
+            asyncio.to_thread(_search_index, INDEX_LISTINGS),
+        )
+
+        return {
+            "users": [
+                {
+                    "id": str(u.get("id", "")),
+                    "email": u.get("email", ""),
+                    "display_name": u.get("display_name", ""),
+                    "faculty": u.get("faculty"),
+                    "year_of_study": u.get("year_of_study"),
+                    "role": u.get("role", ""),
+                }
+                for u in users
+            ],
+            "posts": [
+                {
+                    "id": str(p.get("id", "")),
+                    "content": (p.get("content") or "")[:200],
+                    "author_name": p.get("author_name", "Unknown"),
+                    "author_id": str(p.get("author_id", "")),
+                    "created_at": p.get("created_at", ""),
+                    "like_count": p.get("like_count", 0),
+                }
+                for p in posts
+            ],
+            "clubs": [
+                {
+                    "id": str(c.get("id", "")),
+                    "slug": c.get("slug", ""),
+                    "name": c.get("name", ""),
+                    "description": (c.get("description") or "")[:200],
+                    "member_count": c.get("member_count", 0),
+                    "is_premium": c.get("is_premium", False),
+                }
+                for c in clubs
+            ],
+            "events": [
+                {
+                    "id": str(e.get("id", "")),
+                    "title": e.get("title", ""),
+                    "start_time": e.get("start_time", ""),
+                    "location": e.get("location"),
+                    "status": e.get("status", ""),
+                }
+                for e in events
+            ],
+            "listings": [
+                {
+                    "id": str(l.get("id", "")),
+                    "title": l.get("title", ""),
+                    "price": l.get("price", 0),
+                    "category": l.get("category", ""),
+                }
+                for l in listings
+            ],
+        }
+
+    # ── SQL fallback search (ILIKE) ────────────────────────────────────
+
+    async def _search_users_sql(self, term: str, db: AsyncSession) -> list[dict]:
         result = await db.execute(
             select(User)
             .options(selectinload(User.profile))
@@ -59,11 +160,12 @@ class SearchService:
                 "display_name": u.profile.display_name if u.profile else u.email.split("@")[0],
                 "faculty": u.profile.faculty if u.profile else None,
                 "year_of_study": u.profile.year_of_study if u.profile else None,
+                "role": u.role.value if hasattr(u.role, "value") else u.role,
             }
             for u in users
         ]
 
-    async def _search_posts(self, term: str, db: AsyncSession) -> list[dict]:
+    async def _search_posts_sql(self, term: str, db: AsyncSession) -> list[dict]:
         result = await db.execute(
             select(Post)
             .options(selectinload(Post.author).selectinload(User.profile))
@@ -87,7 +189,7 @@ class SearchService:
             for p in posts
         ]
 
-    async def _search_clubs(self, term: str, db: AsyncSession) -> list[dict]:
+    async def _search_clubs_sql(self, term: str, db: AsyncSession) -> list[dict]:
         result = await db.execute(
             select(Club)
             .where(
@@ -113,7 +215,7 @@ class SearchService:
             for c in clubs
         ]
 
-    async def _search_events(self, term: str, db: AsyncSession) -> list[dict]:
+    async def _search_events_sql(self, term: str, db: AsyncSession) -> list[dict]:
         result = await db.execute(
             select(Event)
             .where(
@@ -138,7 +240,7 @@ class SearchService:
             for e in events
         ]
 
-    async def _search_listings(self, term: str, db: AsyncSession) -> list[dict]:
+    async def _search_listings_sql(self, term: str, db: AsyncSession) -> list[dict]:
         result = await db.execute(
             select(MarketplaceListing)
             .where(

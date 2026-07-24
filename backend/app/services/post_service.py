@@ -7,7 +7,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.exceptions import BadRequestException, ForbiddenException, NotFoundException
 from app.models.moderation import Report, ReportCategory, ReportTargetType
-from app.models.post import Comment, Like, MediaType, PollOption, PollVote, Post, PostMedia, PostVisibility, Save, Share
+from app.models.post import Comment, Like, MediaType, PollOption, PollVote, Post, PostMedia, PostType, PostVisibility, Save, Share
 from app.models.user import Profile, User
 from app.schemas.moderation import ReportCreate
 from app.schemas.post import CommentCreate, PostCreate, PostUpdate
@@ -28,6 +28,22 @@ class PostService:
     """
     Create a new post with optional hashtags and media attachments.
     """
+    # Validate club_only visibility requires owner/admin role
+    if data.visibility == PostVisibility.club_only:
+      if not data.club_id:
+        raise BadRequestException(detail="club_id is required for club announcements.")
+      # Check user is owner or admin of the club
+      from app.models.club import ClubMember, ClubMemberRole
+      member_check = await db.execute(
+          select(ClubMember).where(
+              ClubMember.club_id == data.club_id,
+              ClubMember.user_id == author_id,
+          )
+      )
+      member = member_check.scalar_one_or_none()
+      if not member or member.role not in [ClubMemberRole.owner, ClubMemberRole.admin]:
+        raise ForbiddenException(detail="Only club owners and admins can post announcements.")
+
     # Extract hashtags automatically from content if tags not provided
     tags = data.tags
     if tags is None and data.content:
@@ -39,10 +55,38 @@ class PostService:
         post_type=data.post_type,
         visibility=data.visibility,
         tags=tags,
+        mentioned_users=data.mentioned_users,
         club_id=data.club_id,
     )
     db.add(post)
     await db.flush()
+
+    # Send mention notifications
+    if data.mentioned_users:
+      from app.services.notification_service import get_notification_service
+      from app.models.notification import NotificationType
+      notification_service = get_notification_service()
+      # Fetch author for notification title
+      author_result = await db.execute(select(User).where(User.id == author_id))
+      author = author_result.scalar_one_or_none()
+      author_name = "Someone"
+      if author and author.profile:
+        author_name = author.profile.display_name or author.email.split("@")[0]
+      for user_id_str in data.mentioned_users:
+        try:
+          mentioned_id = uuid.UUID(user_id_str)
+          if mentioned_id != author_id:
+            await notification_service.create_notification(
+              user_id=mentioned_id,
+              type=NotificationType.mention,
+              title=f"{author_name} mentioned you in a post",
+              body=data.content[:200] if data.content else None,
+              data={"post_id": str(post.id)},
+              actor_id=author_id,
+              db=db,
+            )
+        except (ValueError, Exception):
+          pass
 
     # Process poll options
     if data.poll_options:
@@ -102,6 +146,62 @@ class PostService:
 
   # ── Feed Retrieval ──────────────────────────────────────────────────
 
+  async def get_post_by_id(
+      self,
+      user_id: uuid.UUID,
+      post_id: uuid.UUID,
+      db: AsyncSession,
+  ) -> Post:
+    """Retrieve a single post by ID with interaction state."""
+    result = await db.execute(
+        select(Post)
+        .options(
+            selectinload(Post.author).selectinload(User.profile),
+            selectinload(Post.media),
+            selectinload(Post.poll_options),
+        )
+        .where(Post.id == post_id, Post.deleted_at.is_(None))
+    )
+    post = result.scalar_one_or_none()
+    if not post:
+      raise NotFoundException(detail="Post not found.")
+
+    # Resolve is_liked, is_saved, is_shared
+    likes_result = await db.execute(
+        select(Like.post_id).where(Like.user_id == user_id, Like.post_id == post_id)
+    )
+    post.is_liked = likes_result.scalar_one_or_none() is not None
+
+    saves_result = await db.execute(
+        select(Save.post_id).where(Save.user_id == user_id, Save.post_id == post_id)
+    )
+    post.is_saved = saves_result.scalar_one_or_none() is not None
+
+    shares_result = await db.execute(
+        select(Share.post_id).where(Share.user_id == user_id, Share.post_id == post_id)
+    )
+    post.is_shared = shares_result.scalar_one_or_none() is not None
+
+    # Resolve poll data
+    if post.post_type.value == "poll" and post.poll_options:
+      votes_result = await db.execute(
+          select(PollVote.option_id).where(
+              PollVote.user_id == user_id, PollVote.post_id == post_id
+          )
+      )
+      user_vote_option_id = votes_result.scalar_one_or_none()
+      total_votes = sum(opt.vote_count or 0 for opt in post.poll_options)
+      post.poll = {
+          "options": [
+              {"id": str(opt.id), "text": opt.text, "position": opt.position, "vote_count": opt.vote_count or 0}
+              for opt in post.poll_options
+          ],
+          "total_votes": total_votes,
+          "user_vote_option_id": str(user_vote_option_id) if user_vote_option_id else None,
+      }
+
+    return post
+
   async def get_feed(
       self,
       user_id: uuid.UUID,
@@ -111,9 +211,12 @@ class PostService:
       db: AsyncSession,
       club_id: uuid.UUID | None = None,
       author_id: uuid.UUID | None = None,
+      club_feed: bool = False,
   ) -> dict:
     """
     Retrieve a paginated feed of posts, observing visibility gates.
+    When club_feed=True with club_id, returns posts by club members,
+    posts tagged with the club, and club announcements.
     """
     # 1. Recover the requesting user's faculty
     profile_result = await db.execute(
@@ -143,7 +246,21 @@ class PostService:
     
     query = query.where(or_(*visibility_conditions))
 
-    if club_id:
+    # Club feed: combine tagged posts and announcements only
+    if club_feed and club_id:
+      # Build club-specific conditions (OR'd together):
+      # 1. Posts tagged with this club
+      # 2. Club announcements (club_only visibility)
+      club_conditions = [Post.club_id == club_id]
+      club_conditions.append(Post.visibility == PostVisibility.club_only)
+      
+      # Combine: must pass visibility AND (club conditions)
+      query = query.where(and_(
+          or_(*visibility_conditions),
+          or_(*club_conditions),
+      ))
+    elif club_id:
+      # Simple club filter (non club_feed mode)
       query = query.where(Post.club_id == club_id)
 
     if author_id is not None:
@@ -367,37 +484,89 @@ class PostService:
       self,
       post_id: uuid.UUID,
       db: AsyncSession,
+      top_limit: int = 100,
   ) -> list[Comment]:
     """
-    Retrieve comments for a post and wire them into a threaded hierarchy.
+    Retrieve a *bounded* threaded comment tree for a post.
+
+    Previously this loaded **every** comment for the post into memory and
+    built the tree in Python — an OOM risk on a viral post with thousands of
+    comments. We now cap the number of top-level comments (default 100) and
+    load only the replies beneath that bounded set, so the result set is
+    always finite regardless of post popularity.
     """
-    # Single database query to load all comments and their author info
-    result = await db.execute(
+    # 1. Load the most recent top-level comments (bounded).
+    top_result = await db.execute(
         select(Comment)
         .options(selectinload(Comment.author).selectinload(User.profile))
-        .where(Comment.post_id == post_id, Comment.deleted_at.is_(None))
+        .where(
+            Comment.post_id == post_id,
+            Comment.parent_id.is_(None),
+            Comment.deleted_at.is_(None),
+        )
+        .order_by(Comment.created_at.desc())
+        .limit(top_limit)
     )
-    all_comments = list(result.scalars().all())
+    top_level_comments = list(top_result.scalars().all())
 
-    # Form a parent-to-children mapping list
-    parent_map = {}
-    top_level_comments = []
+    if not top_level_comments:
+        return []
 
-    for c in all_comments:
-      if c.parent_id is None:
-        top_level_comments.append(c)
-      else:
-        parent_map.setdefault(c.parent_id, []).append(c)
+    top_ids = {c.id for c in top_level_comments}
 
-    # Wire up replies recursively
-    for c in all_comments:
-      replies_list = parent_map.get(c.id, [])
-      c.replies = sorted(replies_list, key=lambda x: x.created_at)
+    # 2. Load all replies that descend from the bounded top-level set.
+    #    (Replies are themselves bounded by the top-level cap transitively.)
+    replies_result = await db.execute(
+        select(Comment)
+        .options(selectinload(Comment.author).selectinload(User.profile))
+        .where(
+            Comment.post_id == post_id,
+            Comment.parent_id.is_not(None),
+            Comment.deleted_at.is_(None),
+        )
+        .order_by(Comment.created_at.asc())
+    )
+    all_replies = list(replies_result.scalars().all())
 
-    # Return top level comments sorted newest first
-    return sorted(top_level_comments, key=lambda x: x.created_at, reverse=True)
+    # 3. Group replies by their immediate parent.
+    parent_map: dict[uuid.UUID, list[Comment]] = {}
+    for r in all_replies:
+        parent_map.setdefault(r.parent_id, []).append(r)
+
+    # 4. Wire replies onto their parent (already sorted oldest-first above).
+    for c in top_level_comments:
+        c.replies = parent_map.get(c.id, [])
+
+    return top_level_comments
 
   # ── Comment Deletion ─────────────────────────────────────────────────
+
+  async def edit_comment(
+      self,
+      user_id: uuid.UUID,
+      post_id: uuid.UUID,
+      comment_id: uuid.UUID,
+      content: str,
+      db: AsyncSession,
+  ) -> Comment:
+    """Edit a comment's content. Author only."""
+    result = await db.execute(
+        select(Comment).where(
+            Comment.id == comment_id,
+            Comment.post_id == post_id,
+            Comment.deleted_at.is_(None),
+        )
+    )
+    comment = result.scalar_one_or_none()
+    if not comment:
+      raise NotFoundException(detail="Comment not found.")
+    if comment.author_id != user_id:
+      raise ForbiddenException(detail="You can only edit your own comments.")
+
+    comment.content = content
+    comment.edited_at = datetime.now(timezone.utc)
+    await db.flush()
+    return comment
 
   async def delete_comment(
       self,
@@ -450,6 +619,7 @@ class PostService:
 
     if data.content is not None:
       post.content = data.content
+      post.edited_at = datetime.now(timezone.utc)
     if data.visibility is not None:
       post.visibility = data.visibility
     if data.tags is not None:
@@ -550,7 +720,9 @@ class PostService:
     post = post_check.scalar_one_or_none()
     if not post:
       raise NotFoundException(detail="Post not found.")
-    if post.post_type != "poll":
+    # ``PostType`` is a ``str`` enum, but comparing the enum member to the raw
+    # string ``"poll"`` is fragile — compare against the enum member instead.
+    if post.post_type != PostType.poll:
       raise BadRequestException(detail="This post is not a poll.")
 
     # Verify option belongs to this post
@@ -884,8 +1056,13 @@ class PostService:
       db: AsyncSession,
   ) -> dict:
     """Get paginated posts with media attachments by a user."""
+    # Filter the media subquery down to this user's posts *before* the
+    # distinct scan. Previously this DISTINCT-scanned every post_media row
+    # across the whole platform and only filtered by author after the join.
     subquery = (
         select(PostMedia.post_id)
+        .join(Post, PostMedia.post_id == Post.id)
+        .where(Post.author_id == user_id, Post.deleted_at.is_(None))
         .distinct()
         .subquery()
     )

@@ -50,6 +50,7 @@ export default function AcademicsPage() {
   }, [user, faculty, search]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchCourses();
   }, [fetchCourses]);
 
@@ -123,13 +124,13 @@ export default function AcademicsPage() {
           <div className="ml-auto flex items-center gap-2">
             <form onSubmit={handleSearch} className="flex gap-2">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-text-muted" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-text-tertiary" />
                 <input
                   type="text"
                   placeholder="Search courses..."
                   value={searchInput}
                   onChange={(e) => setSearchInput(e.target.value)}
-                  className="w-48 pl-9 pr-3 py-1.5 rounded-lg border border-border bg-surface text-xs font-medium text-text-primary placeholder:text-text-muted outline-none focus:border-accent/50 transition-all"
+                  className="w-48 pl-9 pr-3 py-1.5 rounded-lg border border-border bg-surface text-xs font-medium text-text-primary placeholder:text-text-tertiary outline-none focus:border-accent/50 transition-all"
                 />
               </div>
               <Button type="submit" size="sm" variant="secondary">Search</Button>
@@ -171,7 +172,7 @@ export default function AcademicsPage() {
             </div>
           ) : displayed.length === 0 ? (
             <div className="py-12 text-center">
-              <BookOpen className="h-10 w-10 text-text-muted mx-auto mb-3" strokeWidth={1.5} />
+              <BookOpen className="h-10 w-10 text-text-tertiary mx-auto mb-3" strokeWidth={1.5} />
               <p className="text-sm font-semibold text-text-secondary">
                 {tab === "my"
                   ? "You haven't joined any courses yet."
@@ -193,7 +194,7 @@ export default function AcademicsPage() {
                 >
                   <Link
                     href={`/academics/${course.id}`}
-                    className="block p-5 rounded-xl border border-border bg-bg-surface hover:bg-surface transition-all duration-200 hover:scale-[1.01] group"
+                    className="block p-5 rounded-xl border border-border bg-surface hover:bg-surface transition-all duration-200 hover:scale-[1.01] group"
                   >
                     <div className="flex items-start justify-between gap-3 mb-3">
                       <div className="flex items-center gap-2">
@@ -201,13 +202,13 @@ export default function AcademicsPage() {
                           {course.code}
                         </span>
                         {course.is_member && (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-400">
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-success/10 text-success">
                             Joined
                           </span>
                         )}
                       </div>
                       {course.year && (
-                        <span className="text-[10px] font-semibold text-text-muted">
+                        <span className="text-[10px] font-semibold text-text-tertiary">
                           Y{course.year}{course.semester ? `S${course.semester}` : ""}
                         </span>
                       )}
@@ -220,11 +221,11 @@ export default function AcademicsPage() {
 
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <span className="flex items-center gap-1 text-[11px] text-text-muted font-medium">
+                        <span className="flex items-center gap-1 text-[11px] text-text-tertiary font-medium">
                           <Users className="h-3 w-3" />
                           {formatCount(course.member_count)} members
                         </span>
-                        <span className="flex items-center gap-1 text-[11px] text-text-muted font-medium">
+                        <span className="flex items-center gap-1 text-[11px] text-text-tertiary font-medium">
                           <FileText className="h-3 w-3" />
                           {formatCount(course.resource_count)} resources
                         </span>

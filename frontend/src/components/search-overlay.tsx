@@ -3,11 +3,12 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Calendar, Loader2, MessageCircle, Search, ShoppingBag, Users, X } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
+import { RoleBadge } from "@/components/RoleBadge";
 import { getInitials } from "@/lib/utils";
 import Link from "next/link";
 
 interface SearchResults {
-  users: Array<{ id: string; email: string; display_name: string; faculty: string | null; year_of_study: number | null }>;
+  users: Array<{ id: string; email: string; display_name: string; faculty: string | null; year_of_study: number | null; role: string }>;
   posts: Array<{ id: string; content: string | null; author_name: string; author_id: string; created_at: string; like_count: number }>;
   clubs: Array<{ id: string; slug: string; name: string; description: string | null; member_count: number; is_premium: boolean }>;
   events: Array<{ id: string; title: string; start_time: string | null; location: string | null; status: string }>;
@@ -18,8 +19,8 @@ function SectionHeader({ label, count }: { label: string; count: number }) {
   if (count === 0) return null;
   return (
     <div className="flex items-center gap-2 px-4 pt-4 pb-2">
-      <span className="text-[10px] font-bold tracking-widest text-text-muted uppercase">{label}</span>
-      <span className="text-[10px] font-bold text-text-muted">({count})</span>
+      <span className="text-[10px] font-bold tracking-widest text-text-tertiary uppercase">{label}</span>
+      <span className="text-[10px] font-bold text-text-tertiary">({count})</span>
     </div>
   );
 }
@@ -77,10 +78,10 @@ export function SearchOverlay({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 sm:pt-24 bg-black/60 backdrop-blur-sm animate-fade-in">
       <div
         ref={overlayRef}
-        className="w-full max-w-2xl mx-4 bg-bg-surface border border-border rounded-2xl shadow-2xl shadow-black/50 overflow-hidden max-h-[70vh] flex flex-col"
+        className="w-full max-w-2xl mx-4 bg-surface border border-border rounded-2xl shadow-2xl shadow-black/50 overflow-hidden max-h-[70vh] flex flex-col"
       >
         <div className="flex items-center gap-3 px-5 py-4 border-b border-border">
-          <Search className="h-[18px] w-[18px] text-text-muted shrink-0" strokeWidth={2.5} />
+          <Search className="h-[18px] w-[18px] text-text-tertiary shrink-0" strokeWidth={2.5} />
           <input
             ref={inputRef}
             type="text"
@@ -127,8 +128,11 @@ export function SearchOverlay({ onClose }: { onClose: () => void }) {
                     <span className="text-xs font-bold text-text-inverse">{getInitials(u.display_name)}</span>
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-text-primary truncate">{u.display_name}</p>
-                    <p className="text-xs text-text-muted truncate">{u.faculty || "General"}{u.year_of_study ? ` · ${u.year_of_study}st Year` : ""}</p>
+                    <p className="flex items-center gap-1.5 text-sm font-semibold text-text-primary truncate">
+                      {u.display_name}
+                      {u.role && <RoleBadge role={u.role} hideStudent size={11} />}
+                    </p>
+                    <p className="text-xs text-text-tertiary truncate">{u.faculty || "General"}{u.year_of_study ? ` · ${u.year_of_study}st Year` : ""}</p>
                   </div>
                 </Link>
               ))}
@@ -141,12 +145,12 @@ export function SearchOverlay({ onClose }: { onClose: () => void }) {
                   onClick={onClose}
                   className="flex items-start gap-3 px-4 py-2.5 rounded-lg hover:bg-[rgba(var(--bg-hover),0.08)] transition-colors"
                 >
-                  <div className="w-8 h-8 rounded-lg bg-bg-surface flex items-center justify-center shrink-0">
-                    <MessageCircle className="h-[14px] w-[14px] text-text-muted" strokeWidth={2} />
+                  <div className="w-8 h-8 rounded-lg bg-surface flex items-center justify-center shrink-0">
+                    <MessageCircle className="h-[14px] w-[14px] text-text-tertiary" strokeWidth={2} />
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm text-text-primary leading-snug line-clamp-1">{p.content || "(no text)"}</p>
-                    <p className="text-xs text-text-muted mt-0.5">{p.author_name} · {p.like_count} likes</p>
+                    <p className="text-xs text-text-tertiary mt-0.5">{p.author_name} · {p.like_count} likes</p>
                   </div>
                 </Link>
               ))}
@@ -159,8 +163,8 @@ export function SearchOverlay({ onClose }: { onClose: () => void }) {
                   onClick={onClose}
                   className="flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-[rgba(var(--bg-hover),0.08)] transition-colors"
                 >
-                  <div className="w-8 h-8 rounded-lg bg-bg-surface flex items-center justify-center shrink-0">
-                    <Users className="h-[14px] w-[14px] text-text-muted" strokeWidth={2} />
+                  <div className="w-8 h-8 rounded-lg bg-surface flex items-center justify-center shrink-0">
+                    <Users className="h-[14px] w-[14px] text-text-tertiary" strokeWidth={2} />
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
@@ -169,7 +173,7 @@ export function SearchOverlay({ onClose }: { onClose: () => void }) {
                         <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-accent/10 text-accent border border-accent/20">PREMIUM</span>
                       )}
                     </div>
-                    <p className="text-xs text-text-muted">{c.member_count} members{c.description ? ` · ${c.description.slice(0, 60)}` : ""}</p>
+                    <p className="text-xs text-text-tertiary">{c.member_count} members{c.description ? ` · ${c.description.slice(0, 60)}` : ""}</p>
                   </div>
                 </Link>
               ))}
@@ -182,12 +186,12 @@ export function SearchOverlay({ onClose }: { onClose: () => void }) {
                   onClick={onClose}
                   className="flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-[rgba(var(--bg-hover),0.08)] transition-colors"
                 >
-                  <div className="w-8 h-8 rounded-lg bg-bg-surface flex items-center justify-center shrink-0">
-                    <Calendar className="h-[14px] w-[14px] text-text-muted" strokeWidth={2} />
+                  <div className="w-8 h-8 rounded-lg bg-surface flex items-center justify-center shrink-0">
+                    <Calendar className="h-[14px] w-[14px] text-text-tertiary" strokeWidth={2} />
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-text-primary truncate">{e.title}</p>
-                    <p className="text-xs text-text-muted">{e.location || "Online"} · {e.status}</p>
+                    <p className="text-xs text-text-tertiary">{e.location || "Online"} · {e.status}</p>
                   </div>
                 </Link>
               ))}
@@ -200,12 +204,12 @@ export function SearchOverlay({ onClose }: { onClose: () => void }) {
                   onClick={onClose}
                   className="flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-[rgba(var(--bg-hover),0.08)] transition-colors"
                 >
-                  <div className="w-8 h-8 rounded-lg bg-bg-surface flex items-center justify-center shrink-0">
-                    <ShoppingBag className="h-[14px] w-[14px] text-text-muted" strokeWidth={2} />
+                  <div className="w-8 h-8 rounded-lg bg-surface flex items-center justify-center shrink-0">
+                    <ShoppingBag className="h-[14px] w-[14px] text-text-tertiary" strokeWidth={2} />
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-text-primary truncate">{l.title}</p>
-                    <p className="text-xs text-text-muted">₹{l.price} · {l.category}</p>
+                    <p className="text-xs text-text-tertiary">₹{l.price} · {l.category}</p>
                   </div>
                 </Link>
               ))}

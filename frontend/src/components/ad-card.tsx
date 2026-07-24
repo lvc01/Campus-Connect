@@ -35,7 +35,7 @@ export function AdCard({ ad }: AdCardProps) {
   };
 
   return (
-    <div className="bg-bg-elevated border border-border rounded-xl overflow-hidden">
+    <div className="bg-surface border border-border rounded-xl overflow-hidden">
       {/* Promoted header */}
       <div className="flex items-center gap-1.5 px-4 pt-3 pb-1">
         <Zap size={12} className="text-accent" fill="currentColor" />
@@ -46,7 +46,7 @@ export function AdCard({ ad }: AdCardProps) {
       {ad.image_url && (
         <div className="px-4 py-2">
           <div
-            className="w-full h-32 rounded-lg bg-bg-elevated bg-cover bg-center cursor-pointer"
+            className="w-full h-32 rounded-lg bg-surface bg-cover bg-center cursor-pointer"
             style={{ backgroundImage: `url(${ad.image_url})` }}
             onClick={handleClick}
           />

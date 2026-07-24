@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.exceptions import BadRequestException, ConflictException, ForbiddenException, NotFoundException
-from app.models.club import Club, ClubCategory, ClubMember, ClubMemberRole
+from app.models.club import Club, ClubCategory, ClubMember, ClubMemberRole, ClubMemberStatus
 from app.models.user import User
 from app.schemas.club import ClubCreate, ClubUpdate
 
@@ -47,6 +47,7 @@ class ClubService:
         category=data.category,
         banner_url=data.banner_url,
         logo_url=data.logo_url,
+        requires_approval=data.requires_approval,
         created_by=creator_id,
         member_count=1,  # Starts with the creator as first member
     )
@@ -130,8 +131,8 @@ class ClubService:
       user_id: uuid.UUID,
       club_id: uuid.UUID,
       db: AsyncSession,
-  ) -> None:
-    """Join a society and atomically increment count."""
+  ) -> str:
+    """Join a society. Returns 'joined' or 'pending' based on club policy."""
     club_check = await db.execute(select(Club).where(Club.id == club_id))
     club = club_check.scalar_one_or_none()
     if not club:
@@ -146,21 +147,31 @@ class ClubService:
             ClubMember.club_id == club_id, ClubMember.user_id == user_id
         )
     )
-    if existing.scalar_one_or_none() is not None:
-      return  # Already a member
+    existing_member = existing.scalar_one_or_none()
+    if existing_member is not None:
+      if existing_member.status == ClubMemberStatus.pending:
+        return "pending"
+      return "joined"
+
+    # Determine status based on club policy
+    status = ClubMemberStatus.pending if club.requires_approval else ClubMemberStatus.approved
 
     membership = ClubMember(
         club_id=club_id,
         user_id=user_id,
         role=ClubMemberRole.member,
+        status=status,
     )
     db.add(membership)
 
-    # Atomic counter increment
-    await db.execute(
-        update(Club).where(Club.id == club_id).values(member_count=Club.member_count + 1)
-    )
+    # Only increment counter for immediate approvals
+    if status == ClubMemberStatus.approved:
+      await db.execute(
+          update(Club).where(Club.id == club_id).values(member_count=Club.member_count + 1)
+      )
     await db.flush()
+
+    return status.value
 
   async def leave_club(
       self,
@@ -183,12 +194,14 @@ class ClubService:
           detail="Club owners cannot leave the club. Please transfer ownership first."
       )
 
+    was_approved = membership.status == ClubMemberStatus.approved
     await db.delete(membership)
 
-    # Atomic counter decrement
-    await db.execute(
-        update(Club).where(Club.id == club_id).values(member_count=Club.member_count - 1)
-    )
+    # Only decrement counter if they were an approved member
+    if was_approved:
+      await db.execute(
+          update(Club).where(Club.id == club_id).values(member_count=Club.member_count - 1)
+      )
     await db.flush()
 
   # ── Management & Update Permissions ─────────────────────────────────
@@ -221,9 +234,107 @@ class ClubService:
       club.banner_url = data.banner_url.strip() if data.banner_url else None
     if data.logo_url is not None:
       club.logo_url = data.logo_url.strip() if data.logo_url else None
+    if data.requires_approval is not None:
+      club.requires_approval = data.requires_approval
 
     await db.flush()
     return club
+
+  # ── Membership Approval ─────────────────────────────────────────────
+
+  async def approve_member(
+      self,
+      club_id: uuid.UUID,
+      target_user_id: uuid.UUID,
+      requester_id: uuid.UUID,
+      db: AsyncSession,
+  ) -> ClubMember:
+    """Approve a pending membership request. Owner/admin only."""
+    requester_check = await db.execute(
+        select(ClubMember).where(
+            ClubMember.club_id == club_id, ClubMember.user_id == requester_id
+        )
+    )
+    requester = requester_check.scalar_one_or_none()
+    if not requester or requester.role not in [ClubMemberRole.owner, ClubMemberRole.admin]:
+      raise ForbiddenException(detail="You do not have permission to approve members.")
+
+    target_check = await db.execute(
+        select(ClubMember).where(
+            ClubMember.club_id == club_id, ClubMember.user_id == target_user_id
+        )
+    )
+    target = target_check.scalar_one_or_none()
+    if not target:
+      raise NotFoundException(detail="Member not found in this club.")
+
+    if target.status != ClubMemberStatus.pending:
+      raise BadRequestException(detail="This membership request is not pending.")
+
+    target.status = ClubMemberStatus.approved
+
+    # Increment member count
+    await db.execute(
+        update(Club).where(Club.id == club_id).values(member_count=Club.member_count + 1)
+    )
+    await db.flush()
+
+    result = await db.execute(
+        select(ClubMember)
+        .options(selectinload(ClubMember.user).selectinload(User.profile))
+        .where(ClubMember.id == target.id)
+    )
+    return result.scalar_one()
+
+  async def reject_member(
+      self,
+      club_id: uuid.UUID,
+      target_user_id: uuid.UUID,
+      requester_id: uuid.UUID,
+      db: AsyncSession,
+  ) -> None:
+    """Reject a pending membership request. Owner/admin only."""
+    requester_check = await db.execute(
+        select(ClubMember).where(
+            ClubMember.club_id == club_id, ClubMember.user_id == requester_id
+        )
+    )
+    requester = requester_check.scalar_one_or_none()
+    if not requester or requester.role not in [ClubMemberRole.owner, ClubMemberRole.admin]:
+      raise ForbiddenException(detail="You do not have permission to reject members.")
+
+    target_check = await db.execute(
+        select(ClubMember).where(
+            ClubMember.club_id == club_id, ClubMember.user_id == target_user_id
+        )
+    )
+    target = target_check.scalar_one_or_none()
+    if not target:
+      raise NotFoundException(detail="Member not found in this club.")
+
+    if target.status != ClubMemberStatus.pending:
+      raise BadRequestException(detail="This membership request is not pending.")
+
+    # Delete the pending membership request
+    await db.delete(target)
+    await db.flush()
+
+  async def get_pending_members(
+      self,
+      club_id: uuid.UUID,
+      db: AsyncSession,
+  ) -> list[ClubMember]:
+    """Retrieve pending membership requests for a club."""
+    result = await db.execute(
+        select(ClubMember)
+        .options(selectinload(ClubMember.user).selectinload(User.profile))
+        .where(
+            ClubMember.club_id == club_id,
+            ClubMember.status == ClubMemberStatus.pending,
+        )
+        .order_by(ClubMember.joined_at.asc())
+    )
+    return list(result.scalars().all())
 
   async def update_member_role(
       self,
@@ -333,13 +444,19 @@ class ClubService:
       self,
       club_id: uuid.UUID,
       db: AsyncSession,
+      include_pending: bool = False,
   ) -> list[ClubMember]:
     """Retrieve society members sorted by authority and join date."""
-    result = await db.execute(
+    query = (
         select(ClubMember)
         .options(selectinload(ClubMember.user).selectinload(User.profile))
         .where(ClubMember.club_id == club_id)
-        .order_by(
+    )
+    if not include_pending:
+      query = query.where(ClubMember.status == ClubMemberStatus.approved)
+    
+    result = await db.execute(
+        query.order_by(
             ClubMember.role.desc(),  # owner -> admin -> member
             ClubMember.joined_at.asc(),
         )

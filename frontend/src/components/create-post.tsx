@@ -139,7 +139,7 @@ export function CreatePost({
   const nearLimit = charCount > charLimit * 0.8;
 
   return (
-    <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-border bg-bg">
+    <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-border bg-background">
       {error && (
         <div className="mb-3.5 px-4 py-3 rounded-xl bg-like/10 border border-like/20 text-[13px] font-semibold text-like text-center">
           {error}
@@ -218,7 +218,7 @@ export function CreatePost({
                   <button
                     type="button"
                     onClick={handleClose}
-                    className="text-sm text-text-secondary hover:text-text-primary font-medium px-4 py-2 rounded-full hover:bg-bg-elevated transition-colors"
+                    className="text-sm text-text-secondary hover:text-text-primary font-medium px-4 py-2 rounded-full hover:bg-surface transition-colors"
                   >
                     Cancel
                   </button>

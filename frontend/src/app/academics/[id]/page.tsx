@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import {
-  ChevronLeft,
   Loader2,
   BookOpen,
   Users,
@@ -22,7 +21,16 @@ import { getInitials, getRelativeTime, formatCount } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { getApiErrorMessage, getApiErrorStatus } from "@/lib/api-error";
 import { UploadResource } from "@/components/upload-resource";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { RoleBadge } from "@/components/RoleBadge";
 import Link from "next/link";
+import { BackLink } from "@/components/layout/BackLink";
 import type { CourseData, ResourceData, StudyGroupData } from "@/types/academics";
 
 const RESOURCE_TYPE_LABELS: Record<string, string> = {
@@ -86,12 +94,15 @@ export default function CourseDetailPage() {
 
   useEffect(() => {
     if (!params.id || !user) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsLoading(true);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     Promise.all([fetchCourse(), fetchResources(), fetchStudyGroups()])
       .finally(() => setIsLoading(false));
   }, [params.id, user, fetchCourse, fetchResources, fetchStudyGroups]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchResources();
   }, [resourceFilter, fetchResources]);
 
@@ -170,7 +181,7 @@ export default function CourseDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="flex-1 flex flex-col justify-center items-center bg-bg">
+      <div className="flex-1 flex flex-col justify-center items-center bg-background">
         <Loader2 className="h-10 w-10 text-accent animate-spin" />
       </div>
     );
@@ -178,8 +189,8 @@ export default function CourseDetailPage() {
 
   if (error || !course) {
     return (
-      <div className="flex-1 min-h-screen bg-bg text-text-primary flex flex-col items-center justify-center gap-4">
-        <div className="bg-bg-surface border border-border rounded-2xl p-12 text-center">
+      <div className="flex-1 min-h-screen bg-background text-text-primary flex flex-col items-center justify-center gap-4">
+        <div className="bg-surface border border-border rounded-2xl p-12 text-center">
           <XCircle className="h-10 w-10 text-text-secondary mx-auto mb-3" strokeWidth={1.5} />
           <h2 className="text-lg font-bold text-text-secondary">{error || "Course not found"}</h2>
           <Link href="/academics" className="text-accent text-sm font-semibold mt-2 inline-block hover:underline">Back to Academics</Link>
@@ -189,21 +200,18 @@ export default function CourseDetailPage() {
   }
 
   return (
-    <div className="flex-1 min-h-screen bg-bg text-text-primary flex flex-col relative">
+    <div className="flex-1 min-h-screen bg-background text-text-primary flex flex-col relative">
       <div className="absolute top-[-30%] left-[-10%] w-[800px] h-[800px] rounded-full bg-accent/5 blur-[160px] pointer-events-none" />
 
       <div className="flex-1 w-full max-w-5xl mx-auto px-6 py-8 relative z-10">
-        <Link href="/academics" className="inline-flex items-center gap-2 text-sm font-semibold text-text-secondary hover:text-text-primary transition-colors mb-6">
-          <ChevronLeft className="h-4 w-4" strokeWidth={2.5} />
-          Back to Academics
-        </Link>
+        <BackLink href="/academics" label="Back to Academics" />
 
         <div className="flex items-start justify-between gap-4 mb-6">
           <div>
             <div className="flex items-center gap-3 mb-2">
               <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-accent/10 text-accent">{course.code}</span>
               {course.year && (
-                <span className="text-xs font-semibold text-text-muted">Year {course.year}{course.semester ? ` · Sem ${course.semester}` : ""}</span>
+                <span className="text-xs font-semibold text-text-tertiary">Year {course.year}{course.semester ? ` · Sem ${course.semester}` : ""}</span>
               )}
             </div>
             <h1 className="text-2xl font-black tracking-tight">{course.name}</h1>
@@ -214,8 +222,8 @@ export default function CourseDetailPage() {
           </div>
           <div className="flex items-center gap-3 shrink-0">
             <div className="text-right">
-              <p className="text-xs font-semibold text-text-muted">{formatCount(course.member_count)} members</p>
-              <p className="text-xs font-semibold text-text-muted">{formatCount(course.resource_count)} resources</p>
+              <p className="text-xs font-semibold text-text-tertiary">{formatCount(course.member_count)} members</p>
+              <p className="text-xs font-semibold text-text-tertiary">{formatCount(course.resource_count)} resources</p>
             </div>
             <Button
               onClick={handleJoinLeave}
@@ -255,7 +263,7 @@ export default function CourseDetailPage() {
               <Icon className="h-4 w-4" />
               {label}
               {count > 0 && (
-                <span className="ml-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-surface text-text-muted">{count}</span>
+                <span className="ml-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-surface text-text-tertiary">{count}</span>
               )}
             </button>
           ))}
@@ -263,17 +271,17 @@ export default function CourseDetailPage() {
           <div className="ml-auto flex items-center gap-2">
             {tab === "resources" && course.is_member && (
               <>
-                <select
-                  value={resourceFilter}
-                  onChange={(e) => setResourceFilter(e.target.value)}
-                  className="text-[11px] font-semibold px-2 py-1.5 rounded-lg border border-border bg-surface text-text-primary outline-none focus:border-accent/50"
-                >
-                  <option value="">All Types</option>
-                  <option value="notes">Notes</option>
-                  <option value="past_paper">Past Papers</option>
-                  <option value="study_guide">Study Guides</option>
-                  <option value="other">Other</option>
-                </select>
+                <Select value={resourceFilter || undefined} onValueChange={setResourceFilter}>
+                  <SelectTrigger className="h-8 w-auto min-w-[120px] gap-1.5 rounded-lg border-border bg-surface px-2.5 text-[11px] font-semibold text-text-primary shadow-none outline-none transition-colors hover:border-border-strong focus:ring-2 focus:ring-accent/30 data-[state=open]:border-accent/50 [&>span]:line-clamp-1">
+                    <SelectValue placeholder="All Types" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl border-border bg-popover p-1 text-popover-foreground shadow-lg">
+                    <SelectItem value="notes" className="rounded-md text-[13px]">Notes</SelectItem>
+                    <SelectItem value="past_paper" className="rounded-md text-[13px]">Past Papers</SelectItem>
+                    <SelectItem value="study_guide" className="rounded-md text-[13px]">Study Guides</SelectItem>
+                    <SelectItem value="other" className="rounded-md text-[13px]">Other</SelectItem>
+                  </SelectContent>
+                </Select>
                 <Button size="sm" onClick={() => setShowUpload(true)} className="gap-1">
                   <Upload className="h-3.5 w-3.5" />
                   Upload
@@ -293,7 +301,7 @@ export default function CourseDetailPage() {
           <div className="space-y-3">
             {resources.length === 0 ? (
               <div className="py-12 text-center">
-                <FileText className="h-10 w-10 text-text-muted mx-auto mb-3" strokeWidth={1.5} />
+                <FileText className="h-10 w-10 text-text-tertiary mx-auto mb-3" strokeWidth={1.5} />
                 <p className="text-sm font-semibold text-text-secondary">
                   {resourceFilter ? "No resources of this type." : "No resources uploaded yet."}
                 </p>
@@ -307,7 +315,7 @@ export default function CourseDetailPage() {
               resources.map((r, i) => (
                 <div
                   key={r.id}
-                  className="flex items-center gap-4 p-4 rounded-xl border border-border bg-bg-surface hover:bg-surface transition-colors animate-fade-in"
+                  className="flex items-center gap-4 p-4 rounded-xl border border-border bg-surface hover:bg-surface transition-colors animate-fade-in"
                   style={{ animationDelay: `${Math.min(i * 30, 150)}ms` }}
                 >
                   <span className="text-2xl">{RESOURCE_TYPE_ICONS[r.resource_type] || "📎"}</span>
@@ -317,10 +325,11 @@ export default function CourseDetailPage() {
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-accent/10 text-accent">
                         {RESOURCE_TYPE_LABELS[r.resource_type] || r.resource_type}
                       </span>
-                      <span className="text-[11px] text-text-muted">
+                      <span className="flex items-center gap-1.5 text-[11px] text-text-tertiary">
                         by {r.uploader?.profile?.display_name || r.uploader?.email?.split("@")[0] || "Unknown"}
+                        {r.uploader?.role && <RoleBadge role={r.uploader.role} hideStudent size={11} />}
                       </span>
-                      <span className="text-[11px] text-text-muted">
+                      <span className="text-[11px] text-text-tertiary">
                         {getRelativeTime(r.created_at)}
                       </span>
                     </div>
@@ -329,7 +338,7 @@ export default function CourseDetailPage() {
                     )}
                   </div>
                   <div className="flex items-center gap-3 shrink-0">
-                    <span className="text-[11px] text-text-muted font-medium">
+                    <span className="text-[11px] text-text-tertiary font-medium">
                       <Download className="h-3 w-3 inline mr-0.5" />
                       {r.download_count}
                     </span>
@@ -353,7 +362,7 @@ export default function CourseDetailPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {studyGroups.length === 0 ? (
               <div className="col-span-full py-12 text-center">
-                <Users className="h-10 w-10 text-text-muted mx-auto mb-3" strokeWidth={1.5} />
+                <Users className="h-10 w-10 text-text-tertiary mx-auto mb-3" strokeWidth={1.5} />
                 <p className="text-sm font-semibold text-text-secondary">No study groups yet.</p>
                 {course.is_member && (
                   <Button size="sm" className="mt-3" onClick={() => setShowCreateGroup(true)}>
@@ -365,7 +374,7 @@ export default function CourseDetailPage() {
               studyGroups.map((g, i) => (
                 <div
                   key={g.id}
-                  className="p-5 rounded-xl border border-border bg-bg-surface hover:bg-surface transition-colors animate-fade-in"
+                  className="p-5 rounded-xl border border-border bg-surface hover:bg-surface transition-colors animate-fade-in"
                   style={{ animationDelay: `${Math.min(i * 50, 200)}ms` }}
                 >
                   <div className="flex items-start justify-between gap-2 mb-3">
@@ -382,7 +391,7 @@ export default function CourseDetailPage() {
                     <p className="text-xs text-text-secondary mb-3 line-clamp-2">{g.description}</p>
                   )}
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] text-text-muted">
+                    <span className="text-[11px] text-text-tertiary">
                       {formatCount(g.member_count)} members
                     </span>
                     {course.is_member && (
@@ -464,9 +473,9 @@ function CreateGroupModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-fade-in">
-      <div className="w-full max-w-md bg-bg-surface border border-border rounded-3xl p-6 animate-pop-in">
+      <div className="w-full max-w-md bg-surface border border-border rounded-3xl p-6 animate-pop-in">
         <h2 className="text-xl font-bold tracking-tight mb-1">Create Study Group</h2>
-        <p className="text-xs text-text-muted mb-5">Form a group for collaborative studying</p>
+        <p className="text-xs text-text-tertiary mb-5">Form a group for collaborative studying</p>
 
         {error && (
           <div className="mb-4 p-3 rounded-xl bg-like/10 border border-like/20 text-xs text-like font-semibold">{error}</div>
@@ -481,7 +490,7 @@ function CreateGroupModal({
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
-              className="w-full px-3 py-2 rounded-xl bg-bg-surface border border-border text-sm font-medium text-text-primary placeholder:text-text-muted outline-none focus:border-accent/50 transition-all"
+              className="w-full px-3 py-2 rounded-xl bg-surface border border-border text-sm font-medium text-text-primary placeholder:text-text-tertiary outline-none focus:border-accent/50 transition-all"
             />
           </div>
 
@@ -491,7 +500,7 @@ function CreateGroupModal({
               placeholder="What will this group focus on?"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full min-h-[80px] px-3 py-2 rounded-xl bg-bg-surface border border-border text-sm font-medium text-text-primary placeholder:text-text-muted resize-none outline-none focus:border-accent/50 transition-all"
+              className="w-full min-h-[80px] px-3 py-2 rounded-xl bg-surface border border-border text-sm font-medium text-text-primary placeholder:text-text-tertiary resize-none outline-none focus:border-accent/50 transition-all"
             />
           </div>
 
@@ -503,7 +512,7 @@ function CreateGroupModal({
               max="50"
               value={maxMembers}
               onChange={(e) => setMaxMembers(e.target.value)}
-              className="w-24 px-3 py-2 rounded-xl bg-bg-surface border border-border text-sm font-medium text-text-primary outline-none focus:border-accent/50 transition-all"
+              className="w-24 px-3 py-2 rounded-xl bg-surface border border-border text-sm font-medium text-text-primary outline-none focus:border-accent/50 transition-all"
             />
           </div>
 

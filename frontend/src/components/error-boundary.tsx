@@ -38,7 +38,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
       }
 
       return (
-        <div className="min-h-screen flex items-center justify-center bg-bg p-8">
+        <div className="min-h-screen flex items-center justify-center bg-background p-8">
           <div className="max-w-md w-full text-center space-y-6">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-like/10 border border-like/20">
               <AlertCircle className="h-7 w-7 text-like" strokeWidth={2} />
@@ -56,7 +56,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
               </button>
               <button
                 onClick={() => { window.location.href = "/login"; }}
-                className="px-6 py-2.5 rounded-xl bg-bg-elevated text-text-primary font-semibold text-sm hover:bg-bg transition-colors"
+                className="px-6 py-2.5 rounded-xl bg-surface text-text-primary font-semibold text-sm hover:bg-background transition-colors"
               >
                 Go to login
               </button>

@@ -69,7 +69,7 @@ export const Menu: React.FC<MenuProps> = ({
         <div
           role="menu"
           className={cn(
-            "absolute z-40 min-w-[200px] py-1.5 bg-bg rounded-2xl border border-border shadow-modal",
+            "absolute z-40 min-w-[200px] py-1.5 bg-background rounded-2xl border border-border shadow-modal",
             "animate-fade-in",
             side === "bottom" ? "top-full mt-2" : "bottom-full mb-2",
             align === "start" && "left-0",
@@ -94,7 +94,7 @@ export const Menu: React.FC<MenuProps> = ({
               "flex items-center w-full px-3 py-2 text-sm transition-colors duration-150 focus:outline-none";
             const tone = item.destructive
               ? "text-like hover:bg-like/10"
-              : "text-text-primary hover:bg-bg-elevated";
+              : "text-text-primary hover:bg-surface";
             const disabled = item.disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer";
 
             if (item.href) {
