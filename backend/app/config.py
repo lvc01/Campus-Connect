@@ -37,6 +37,12 @@ class Settings(BaseSettings):
             )
         return self
 
+    # ── Operational toggles ────────────────────────────────────────────
+    # Set APPLY_PROD_GUARDS=false to skip the production-mode validation
+    # in ``_validate_production_safety``. Useful for demos on free-tier
+    # hosts (e.g. Render) where SMTP / S3 / Redis aren't configured yet.
+    APPLY_PROD_GUARDS: bool = True
+
     # ── Database ──────────────────────────────────────────────────────
     DATABASE_URL: str = "postgresql+asyncpg://postgres:password@localhost:5432/campus_connect"
 
@@ -118,6 +124,8 @@ class Settings(BaseSettings):
         DB credentials) in a production environment.
         """
         if self.ENVIRONMENT != "production":
+            return self
+        if not self.APPLY_PROD_GUARDS:
             return self
 
         errors: list[str] = []
