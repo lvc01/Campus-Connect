@@ -42,6 +42,14 @@ if _IS_POSTGRES:
     # Kill any query that runs longer than 30s so a runaway statement can't
     # pin a pooled connection indefinitely. Tune per workload if needed.
     _connect_args["server_settings"] = {"statement_timeout": "30000"}
+    # Disable asyncpg's prepared-statement cache. This is required when
+    # connecting through pgBouncer (e.g. Supabase's transaction pooler in
+    # IPv4-only mode on free-tier hosts), because pgBouncer in transaction
+    # mode does not allow server-side prepared statements. Disabling the
+    # cache costs a small amount of throughput but is the standard fix.
+    # Safe to apply unconditionally — the benefit applies whether or not
+    # we're behind a pooler.
+    _connect_args["statement_cache_size"] = 0
 
 # Pool-sizing kwargs are only valid for Postgres. SQLite (used by the test
 # suite via aiosqlite + StaticPool) rejects pool_size/max_overflow/pool_timeout.
